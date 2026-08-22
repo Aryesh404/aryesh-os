@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# The database, its backups, and everything derived from them.
+data/
+!data/.gitkeep
+
+.env
+.env.*
+!.env.example
+
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

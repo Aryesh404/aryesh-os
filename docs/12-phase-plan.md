@@ -1,0 +1,153 @@
+# 12 — Phase Plan
+
+Sequencing principle: **get the loop closing as early as possible, then make it
+beautiful, then make it smart.** A working Observe→Measure→Visualize cycle with
+three goals is more valuable than a half-built version of everything.
+
+## The day-one problem
+
+Trajectory needs history, and a new system has none. Three answers, all in
+Phase 1 because retrofitting them is worse:
+
+1. **Backfill on metric creation** — the metric form accepts historical values
+   ("revenue for the last 6 months"), entered as dated readings.
+2. **Collectors backfill** — collectors are pure functions of `(period, data)`,
+   so they rebuild the past from existing transactions and task history the
+   moment they are registered.
+3. **Snapshots start at M4**, before anything displays them. Cheap now,
+   impossible to reconstruct honestly later.
+
+---
+
+## Phase 1 — Measurement & Trajectory  (~27 days)
+
+**Ends with:** goals and metrics defined, data flowing in, progress computed
+honestly, and a trajectory chart that answers "am I on track?".
+
+### M1 — Skeleton (2d) — COMPLETE
+Monorepo, Turbo, tsconfig, ESLint with boundary rules, Vitest, Fastify + tRPC,
+Vite shell with the `05` token set, libSQL + Drizzle, `CLAUDE.md`,
+`ShellAdapter` interface (browser impl now, Tauri in Phase 2).
+
+*Done when:* `npm run dev` starts both, CI passes, a boundary violation fails lint.
+
+**Verified:** `npm run ci` green (6 typecheck tasks, 18 tests, 2 builds); a probe
+importing `node:fs` and `@aryesh/db` from `packages/intelligence` fails lint with
+exit 1; `npm run db:migrate` creates `data/aryesh.db`; both servers serve.
+Delivered past the checklist: `normaliseMetric` with 14 property-based tests, and
+domain-error-to-HTTP mapping (a `NotMeasurableError` is 422, not 500) with a
+regression test.
+
+### M2 — Domain & storage (4d)
+Tables and repositories for areas, goals, metrics, readings, milestones,
+projects, tasks, habits, relations. Relation endpoint validation. Custom-field
+definitions and validation. Soft delete, audit, revisions.
+
+*Done when:* integration tests exercise every object against real libSQL; every
+mutation writes an audit row; relation cycles are rejected with the path shown.
+
+### M3 — Intelligence core (4d) ★
+`packages/intelligence`, pure: progress computation, per-kind normalisation,
+weight renormalisation with degradation, confidence and staleness, the
+derived-metric expression language.
+
+*Done when:* property tests hold — progress is monotonic in contributor
+progress, normalised weights always sum to 1, metric normalisation is correct in
+all three directions, a stale metric lowers confidence, an unsatisfied
+contributor degrades rather than silently changing the method. **Zero I/O in this
+package**, enforced by lint.
+
+### M4 — Snapshots, collectors, jobs (2d) ★
+Job queue, cron, the snapshotter, the v1 collectors (`03` §2), backfill.
+
+*Done when:* a nightly snapshot writes for every goal and metric; collectors
+rebuild 12 months of history from seeded transactions and re-run idempotently.
+
+### M5 — API & auth (2d)
+tRPC routers, Argon2id + passkey, session cookies, device tokens, FTS, keyset
+pagination, typed errors.
+
+### M6 — Capture & structure UI (5d)
+Areas and **themes**; the goal builder including the **progress-model editor**
+(pick contributors, set weights, see the resulting number update live); metric
+creation with backfill; quick capture in the command palette; readings entry;
+project and task basics.
+
+*Done when:* a goal with four mixed contributors can be built entirely in the UI
+and its progress explained via drill-down.
+
+### M7 — Trajectory & home (5d) ★
+Trajectory engine (velocity, projection, bands, honesty gates, status), the
+trajectory chart (`05` §5.1), progress rings, contribution breakdown, and the
+home dashboard v1.
+
+*Done when:* the chart draws actual, required pace, and a banded projection for
+a dated goal; renders the **momentum vocabulary** for an undated theme without
+inventing a deadline; and **correctly refuses to project** with fewer than 5
+snapshots, showing the explanation instead.
+
+### M8 — Hardening (3d)
+Performance budgets asserted, empty/loading/stale states, error handling,
+structured logging, backup and export.
+
+---
+
+## Phase 2 — Visualization (~15 days)
+
+Full visual system implementation; the motion layer; the neural graph
+(projection, WebGL rendering, encoding, interaction, contribution-path
+highlight); the dashboard builder with drag/resize/configure; the widget
+registry and v1 widget set; **Tauri v2 wrapper** with global hotkey and OS
+notifications.
+
+*Done when:* the graph holds 60 fps at 2 000 nodes, the dashboard is fully
+user-arrangeable, and the app opens from a global hotkey.
+
+## Phase 3 — Understanding & Decisions (~12 days)
+
+Blocker detectors, attention allocation, the insight engine with deduplication
+and anti-noise rules, attention ranking, the decision log with review flow and
+calibration. All deterministic — no AI yet.
+
+*Done when:* every detector has fixture tests, and the system surfaces a real
+finding from real seeded data that the user had not noticed.
+
+## Phase 4 — Work & Money (~12 days)
+
+Project and task depth, habits and streaks, finance (accounts, transactions,
+categories, budgets, investments, net worth), finance collectors feeding metrics,
+business and client attribution.
+
+## Phase 5 — Claude Layer (~14 days)
+
+Analysis first (insight enrichment, question answering over the graph and
+progress), then execution (Agent SDK bridge, permissions, allowance UI, audit,
+MCP write-back, `rewindFiles` revert). Then CLI, then the mobile companion for
+approvals and capture.
+
+## Phase 6 — Automations & Refinement (~10 days)
+
+The workflow engine as an event-bus subscriber (`08` §4), predictive refinement,
+decision calibration analytics, polish.
+
+---
+
+## Definition of done (every milestone)
+
+1. Types check, no `any`, no unexplained `@ts-expect-error`.
+2. Pure logic property-tested; anything touching the DB integration-tested.
+3. Every computed number is drillable to its `Explained<T>`.
+4. Every mutation writes audit.
+5. Empty, loading, stale, and error states exist — not just the happy path.
+6. Docs updated when a decision changes. These documents are the specification.
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| No history makes the product feel empty for weeks | **High** | The three day-one answers above. Backfill is a Phase 1 feature, not a nicety |
+| Progress models are too fiddly to configure | High | M6 is the test. Ship 3–4 templates ("outcome metric", "project-driven", "habit-driven") as starting points, editable after |
+| Trajectory math produces confident nonsense early | High | The honesty gates in `04` §2 are engine-enforced and tested, not UI conventions |
+| Visual ambition slows delivery | Medium | The token system and chart primitives land in M1/M7 and are reused; polish is a Phase 2 pass, not per-screen improvisation |
+| libSQL proves limiting | Low | Repository layer; benchmark gate at M2 (`13` D1) |
+| Scope regrowth toward a no-code platform | Medium | `08` §2 is the standing answer. New extensibility needs a named progress-intelligence benefit |

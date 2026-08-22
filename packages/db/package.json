@@ -1,0 +1,20 @@
+{
+  "name": "@aryesh/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aryesh/domain": "*",
+    "@libsql/client": "^0.14.0",
+    "drizzle-orm": "^0.45.2"
+  }
+}

@@ -1,0 +1,98 @@
+/**
+ * Design tokens — docs/05 Visual System.
+ *
+ * Colour, type, space, and motion all live here so that "the theme is config"
+ * stays true: these are the variables the settings surface will write to.
+ */
+
+:root {
+  /* ---- Canvas ---------------------------------------------------------- */
+  --bg-canvas: #08090b;
+  --bg-surface: #0e1013;
+  --bg-raised: #14171b;
+  --bg-inset: #050607;
+  --border: #1c2026;
+  --border-strong: #2a3038;
+
+  /* ---- Text ------------------------------------------------------------ */
+  --text-primary: #e8eaed;
+  --text-secondary: #9ba1a9;
+  --text-tertiary: #6b7280;
+
+  /* ---- UI accent — interaction only, never status ---------------------- */
+  --accent: #7c6bff;
+  --accent-dim: #5b4fcc;
+  --accent-glow: rgba(124, 107, 255, 0.12);
+
+  /* ---- Trajectory status — the product's core vocabulary --------------- */
+  /* Dated: ahead | on_track | at_risk | behind | stalled | unknown         */
+  /* Undated: advancing | steady | slowing | (none) | stalled | unknown     */
+  --st-ahead: #38bdf8;
+  --st-on-track: #34d399;
+  --st-at-risk: #fbbf24;
+  --st-behind: #f87171;
+  --st-stalled: #6b7280;
+  --st-unknown: #4b5563;
+
+  /* ---- Typography ------------------------------------------------------ */
+  --font-ui: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+
+  --fs-11: 0.6875rem;
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-20: 1.25rem;
+  --fs-28: 1.75rem;
+  --fs-40: 2.5rem;
+
+  /* ---- Space (4px grid) ------------------------------------------------ */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-6: 1.5rem;
+  --s-8: 2rem;
+  --s-12: 3rem;
+
+  --r-control: 4px;
+  --r-card: 6px;
+  --r-panel: 10px;
+
+  /* ---- Motion — docs/05 §4 --------------------------------------------- */
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --d-micro: 120ms;
+  --d-standard: 220ms;
+  --d-entrance: 320ms;
+  --d-number: 400ms;
+  --d-ring: 600ms;
+  --d-trajectory: 700ms;
+}
+
+/* Density is a user setting applied through spacing (docs/05 §3). */
+:root[data-density='compact'] {
+  --s-3: 0.5rem;
+  --s-4: 0.75rem;
+  --s-6: 1rem;
+}
+:root[data-density='relaxed'] {
+  --s-3: 1rem;
+  --s-4: 1.25rem;
+  --s-6: 2rem;
+}
+
+/**
+ * Nothing moves on its own, and when the user asks for stillness we give it —
+ * but delta indicators stay, so no information is lost (docs/05 §4).
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-micro: 0ms;
+    --d-standard: 0ms;
+    --d-entrance: 0ms;
+    --d-number: 0ms;
+    --d-ring: 0ms;
+    --d-trajectory: 0ms;
+  }
+}
