@@ -50,6 +50,23 @@ export function getDb(options: DbOptions): Db {
   return created.db;
 }
 
+/**
+ * Pragmas we depend on rather than hope for.
+ *
+ * libSQL happens to enable `foreign_keys` by default, but relation integrity is
+ * a correctness guarantee here (orphan endpoints are reported, never
+ * auto-deleted), so it is set explicitly rather than inherited from a driver
+ * default that could change. WAL is skipped for `:memory:`, where it is
+ * meaningless.
+ */
+export async function configureConnection(client: Client, url: string): Promise<void> {
+  await client.execute('PRAGMA foreign_keys = ON');
+  if (!url.includes(':memory:')) {
+    await client.execute('PRAGMA journal_mode = WAL');
+    await client.execute('PRAGMA synchronous = NORMAL');
+  }
+}
+
 export async function closeDb(): Promise<void> {
   client?.close();
   client = undefined;

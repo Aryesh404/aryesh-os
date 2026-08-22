@@ -38,13 +38,32 @@ Delivered past the checklist: `normaliseMetric` with 14 property-based tests, an
 domain-error-to-HTTP mapping (a `NotMeasurableError` is 422, not 500) with a
 regression test.
 
-### M2 — Domain & storage (4d)
-Tables and repositories for areas, goals, metrics, readings, milestones,
+### M2 — Domain & storage (4d) — COMPLETE
+Tables and repositories for areas, themes, goals, metrics, readings, milestones,
 projects, tasks, habits, relations. Relation endpoint validation. Custom-field
 definitions and validation. Soft delete, audit, revisions.
 
 *Done when:* integration tests exercise every object against real libSQL; every
 mutation writes an audit row; relation cycles are rejected with the path shown.
+
+**Verified:** 16 tables, 31 indexes, 71 tests green. Every object round-trips
+create/read/update/soft-delete/restore against real in-memory libSQL; audit rows
+carry actor, before, and after (including `agent:` actors and execution ids);
+cycles are rejected with the offending path (`A → B → C → A`).
+
+Enforced at the data layer rather than by convention:
+- **`task → goal` contributions are refused**, with the reason ("activity, not
+  advancement") in the error. The activity/advancement boundary is now
+  structural (docs/03 §4.4).
+- **`belongs_to` is never stored** — containment is already a foreign key, and a
+  second copy can drift. The graph derives those edges. This deviates from
+  docs/02 §2 as originally written and that section has been updated.
+- Goal nesting is guarded by the same acyclicity check as `contributes_to`,
+  since it nests by FK rather than by edge.
+- Foreign keys are enforced explicitly via pragma, not inherited from a driver
+  default.
+
+**D1 storage gate passed** — see docs/13.
 
 ### M3 — Intelligence core (4d) ★
 `packages/intelligence`, pure: progress computation, per-kind normalisation,

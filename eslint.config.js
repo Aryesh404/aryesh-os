@@ -95,6 +95,7 @@ export default tseslint.config(
       '**/.turbo/**',
       'data/**',
       'docs/**',
+      'scratch/**',
     ],
   },
 

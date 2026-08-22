@@ -1,0 +1,9 @@
+# Normalise to LF in the repository. Without this, Windows checkouts produce
+# whole-file diffs whenever a file is touched by a different tool.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.db binary

@@ -107,10 +107,44 @@ work — the import is the problem.
 - **Relative `DATABASE_URL` resolves against the repo root**, not cwd — see
   `resolveDbUrl` in `packages/db`. The API passes its own root explicitly.
 - `exactOptionalPropertyTypes` means `foo?: string` and `foo?: string | undefined`
-  differ. Zod-inferred optionals need the explicit `| undefined`.
+  differ. Zod-inferred optionals need the explicit `| undefined`, and passing
+  `{ opt: undefined }` is NOT the same as omitting the key.
+- **SQLite treats NULLs as DISTINCT in a UNIQUE index.** A nullable column in a
+  dedupe key silently exempts every row that leaves it null. `readings.component`
+  is `NOT NULL DEFAULT ''` for exactly this reason — with it nullable, collector
+  re-runs doubled history instead of updating it.
+- Drizzle strips each builder method from the type once called, so conditional
+  chaining (`if (where) q = q.where(...)`) needs `.$dynamic()`.
+- Self-referencing FKs need an explicit return type:
+  `.references((): AnySQLiteColumn => goals.id)`.
+- Errors live in `@aryesh/domain`, not `@aryesh/contracts`, so the db layer can
+  raise them without importing upward. `contracts` re-exports them.
+
+## Data layer notes (M2)
+
+- Repositories come from `createRepositories({ db, clock })`. The factory in
+  `packages/db/src/repositories/base.ts` handles audit, soft delete, optimistic
+  version, revisions, and custom-field validation once — do not hand-roll them.
+- Every write takes a `Ctx { actor, executionId?, note? }`. There is no
+  anonymous write.
+- `belongs_to` is never stored; containment is a foreign key. The graph derives
+  those edges.
+- Only `contributes_to` feeds progress. `relations.contributorsOf(goalId)` IS
+  the progress engine's input.
+- Readings are append-only and idempotent by
+  `(metric, at, source, component)`. A correction is a new reading.
+- Use `createTestDb()` from `packages/db/src/testing.js` — real in-memory libSQL
+  with migrations and a controllable clock.
+- After changing a table, run `npm run db:generate`. New tables go in
+  `packages/db/src/schema/tables/` and are re-exported from `schema/index.ts`.
 
 ## Current state
 
-Phase 1 · **M1 complete** (skeleton). Next: **M2 — domain & storage**
-(`docs/12-phase-plan.md`). M4 starts writing snapshots, which cannot be
-backfilled honestly later — do not let it slip.
+Phase 1 · **M1 and M2 complete.** 71 tests green. Next: **M3 — intelligence
+core** (`docs/12-phase-plan.md`): progress computation, weight renormalisation
+with degradation, confidence and staleness, the derived-metric expression
+language. All pure, all property-tested, zero I/O.
+
+**M4 starts writing snapshots, which cannot be backfilled honestly later.** A
+goal whose model changed last month cannot have last month's progress
+reconstructed. Do not let it slip behind the visible UI work.

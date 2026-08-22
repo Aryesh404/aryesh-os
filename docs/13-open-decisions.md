@@ -4,7 +4,7 @@
 
 | # | Decision | Resolution | Consequence |
 |---|---|---|---|
-| **D1** | Storage | **libSQL, revisit with real data** | Benchmark gate at M2 is a real review point, not a formality. Repository layer keeps the port cheap |
+| **D1** | Storage | **libSQL — gate PASSED at M2 with real data** | Benchmarked at 500k readings / 2 000 goals / 10k edges (5–10× realistic scale): graph projection 31 ms, 2y trajectory series 14 ms, goal list 4 ms, contribution lookup 5 ms — all inside the docs/01 §7 budgets with large margins. 125 MB on disk. No reason to revisit before Phase 4 |
 | **D2** | App shell | **Web now, Tauri v2 in Phase 2** | `ShellAdapter` interface from M1 so the wrapper is additive. Unlocks the global hotkey, which is what makes "command center" literal |
 | **D4** | Claude billing | **Deferred; cost model worked in §D4** | Claude is now Phase 5, so this blocks nothing for months |
 | **D-scope** | Product scope | **Progress intelligence; customization scoped per `08`** | ~40% less machinery than v1 |

@@ -154,11 +154,19 @@ Fixed, each with meaning the engine can act on.
 | Relation | Meaning | Typical endpoints | Weighted |
 |---|---|---|---|
 | `contributes_to` | Source advances target; participates in progress roll-up | goal→goal, project→goal, metric→goal, milestone→goal, habit→goal | **Yes** |
-| `belongs_to` | Structural containment | goal→theme, theme→area, project→business, task→project, transaction→account | No |
+| `belongs_to` | Structural containment — **derived from foreign keys, never stored as an edge** (see below) | goal→theme, theme→area, project→business, task→project, transaction→account | No |
 | `depends_on` | Source is blocked until target completes | task→task, project→project, goal→goal, milestone→milestone | No |
 | `measures` | Source quantifies target **without scoring it** — diagnostic and leading indicators | metric→goal, metric→project, metric→business, metric→habit | No |
 | `informed_by` | Target was evidence for the source decision | decision→(metric, insight, project, note) | No |
 | `relates_to` | Weak associative link; graph context only | anything→anything | No |
+
+One implementation note that matters: **`belongs_to` is not a stored row.**
+Every containment in the fixed domain is already a foreign key
+(`goal.themeId`, `task.projectId`, `milestone.goalId`), and keeping a second
+copy as an edge would give the same fact two sources of truth that can drift.
+The graph derives those edges from the FKs at projection time. The relation
+kind stays in the vocabulary because the graph and the AI context both speak
+it; only the storage is different.
 
 Two rules the engine relies on:
 
