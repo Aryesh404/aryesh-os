@@ -36,6 +36,8 @@ export interface MetricFacts {
   currentValue?: number | undefined;
   /** Earliest recorded value, used when no baseline is set — never zero. */
   firstValue?: number | undefined;
+  /** When tracking began. Density compares actual history against expected. */
+  firstReadingAt?: number | undefined;
   lastReadingAt?: number | undefined;
   readingCount: number;
   /** Set by the caller when the metric was entered by hand. */

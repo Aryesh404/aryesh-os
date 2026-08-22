@@ -100,11 +100,39 @@ Deviation: the expression language ships `rolling_mean(m, n)` and
 `rolling_sum(m, n)` instead of `rolling(m, fn, n)`. Same power, no need for
 name literals in the grammar.
 
-### M4 — Snapshots, collectors, jobs (2d) ★
-Job queue, cron, the snapshotter, the v1 collectors (`03` §2), backfill.
+### M4 — Snapshots, collectors, jobs (2d) ★ — COMPLETE
+Job queue, scheduler, the snapshotter, the v1 collectors (`03` §2), backfill.
 
 *Done when:* a nightly snapshot writes for every goal and metric; collectors
 rebuild 12 months of history from seeded transactions and re-run idempotently.
+
+**Verified:** 184 tests green. A snapshot run writes one row per goal plus
+metric rollups, is idempotent within a day, and accumulates a rising series
+across days — the input trajectory needs. Collectors rebuild 12 months from
+seeded transactions and produce identical row counts on the second and third
+run.
+
+New package `packages/core`, the layer that composes intelligence with storage.
+`packages/intelligence` still performs no I/O.
+
+Decisions made while building:
+- **An unmeasurable goal still gets a snapshot row**, carrying the reason. A gap
+  in the series would later read as "no data recorded" when the truth is "we
+  tried and it could not be measured".
+- **A period with no data records nothing, not zero.** A month with no
+  transactions is not a month of zero revenue, and a fabricated zero would sit
+  in the trajectory forever.
+- **Net worth is a balance, not a flow**, so it is never backfilled — stamping
+  today's balance onto every past month would invent history.
+- **Readings are stamped at the period start**, which is what makes a re-run
+  land on the same row rather than beside it.
+- The scheduler enqueues one deduped job per missed day, so closing the laptop
+  for a week leaves seven days to fill rather than seven copies of tonight.
+
+Also fixed: `firstReadingAt` was never threaded into confidence, so the density
+term always evaluated to 1 and did nothing. And low freshness now explains
+itself rather than only formal staleness — a metric 45 days behind a monthly
+cadence was dropping confidence to 0.5 while saying nothing about why.
 
 ### M5 — API & auth (2d)
 tRPC routers, Argon2id + passkey, session cookies, device tokens, FTS, keyset

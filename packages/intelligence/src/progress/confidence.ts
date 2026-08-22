@@ -62,8 +62,12 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   const stale = isStale(input.cadence, input.lastReadingAt, input.now);
 
   const caveats: string[] = [];
-  if (input.readingCount === 0) caveats.push('no readings recorded');
-  else if (stale) {
+  if (input.readingCount === 0) {
+    caveats.push('no readings recorded');
+  } else if (f < 0.6) {
+    // Not necessarily past the staleness threshold, but far enough behind the
+    // cadence to be pulling confidence down. A number that quietly drops
+    // without saying why is exactly the kind the user stops believing.
     const days = Math.floor((input.now - (input.lastReadingAt ?? input.now)) / 86_400_000);
     caveats.push(`last read ${days}d ago (cadence: ${input.cadence})`);
   }

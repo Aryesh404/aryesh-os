@@ -1,4 +1,5 @@
 import {
+  accounts,
   areas,
   categories,
   habitEntries,
@@ -8,6 +9,7 @@ import {
   projects,
   tasks,
   themes,
+  transactions,
 } from '../schema/index.js';
 import type { Db } from '../client.js';
 import { createRepository, type CustomFieldsGuard, type RepoDeps } from './base.js';
@@ -65,6 +67,12 @@ export function createRepositories({ db, clock = Date.now }: RepositoriesOptions
     habits: createRepository(deps, habits, 'habit', { customFields: guard('habit') }),
     habitEntries: habitEntries,
     relations: createRelationsRepository(deps),
+    accounts: createRepository(deps, accounts, 'account', {
+      customFields: guard('account'),
+    }),
+    transactions: createRepository(deps, transactions, 'transaction', {
+      customFields: guard('transaction'),
+    }),
     categories: createRepository(deps, categories, 'category', { revisioned: true }),
     customFieldDefs: createCustomFieldDefsRepository(deps, customFieldValidator),
     customFieldValidator,

@@ -139,7 +139,7 @@ export function evaluateContributor(
       const conf = computeConfidence({
         cadence: m.cadence,
         lastReadingAt: m.lastReadingAt,
-        firstReadingAt: undefined,
+        firstReadingAt: m.firstReadingAt,
         readingCount: m.readingCount,
         manual: m.manual,
         now: ctx.now,

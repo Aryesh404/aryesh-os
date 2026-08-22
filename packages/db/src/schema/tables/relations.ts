@@ -32,6 +32,15 @@ export const relations = sqliteTable(
     toId: text('to_id').notNull(),
     /** `contributes_to` only. Relative; normalised at evaluation time. */
     weight: real('weight'),
+    /**
+     * `contributes_to` only. How this contributor is scored (docs/03 §4).
+     * Null means derive it: a momentum goal scores unbounded metrics and habits
+     * as rates, everything else as levels. Set explicitly to override.
+     */
+    evaluation: text('evaluation').$type<'level' | 'rate'>(),
+    /** Expected cadence for a rate contributor, e.g. 1 per month. */
+    expectedRateValue: real('expected_rate_value'),
+    expectedRatePer: text('expected_rate_per').$type<'week' | 'month' | 'quarter'>(),
     /** `measures` only (docs/03 §10). User-stated, never inferred. */
     leadsMetricId: text('leads_metric_id'),
     lagDays: integer('lag_days'),

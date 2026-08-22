@@ -21,6 +21,9 @@ export interface CreateRelationInput {
   toId: string;
   /** `contributes_to` only. Relative; normalised at evaluation time. */
   weight?: number;
+  /** `contributes_to` only. Null derives it from the goal's measurement mode. */
+  evaluation?: 'level' | 'rate';
+  expectedRate?: { value: number; per: 'week' | 'month' | 'quarter' };
   /** `measures` only (docs/03 §10). */
   leads?: { targetMetricId: string; lagDays: number };
 }
@@ -89,6 +92,9 @@ export function createRelationsRepository(deps: RepoDeps) {
         toType: input.toType,
         toId: input.toId,
         weight: input.kind === 'contributes_to' ? (input.weight ?? 1) : (input.weight ?? null),
+        evaluation: input.evaluation ?? null,
+        expectedRateValue: input.expectedRate?.value ?? null,
+        expectedRatePer: input.expectedRate?.per ?? null,
         leadsMetricId: input.leads?.targetMetricId ?? null,
         lagDays: input.leads?.lagDays ?? null,
         createdAt: now,

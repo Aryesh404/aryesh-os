@@ -40,6 +40,47 @@ CREATE TABLE `custom_field_defs` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `idx_cfd_key` ON `custom_field_defs` (`object_kind`,`key`);--> statement-breakpoint
 CREATE INDEX `idx_cfd_object` ON `custom_field_defs` (`object_kind`) WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE TABLE `accounts` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`kind` text NOT NULL,
+	`currency` text DEFAULT 'INR' NOT NULL,
+	`balance_minor` integer DEFAULT 0 NOT NULL,
+	`is_liability` integer DEFAULT false NOT NULL,
+	`is_liquid` integer DEFAULT true NOT NULL,
+	`custom_fields` text DEFAULT '{}' NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`created_by` text NOT NULL,
+	`updated_by` text NOT NULL,
+	`version` integer DEFAULT 1 NOT NULL,
+	`deleted_at` integer
+);
+--> statement-breakpoint
+CREATE INDEX `idx_accounts_kind` ON `accounts` (`kind`) WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE TABLE `transactions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`account_id` text NOT NULL,
+	`amount_minor` integer NOT NULL,
+	`currency` text DEFAULT 'INR' NOT NULL,
+	`direction` text NOT NULL,
+	`occurred_at` integer NOT NULL,
+	`description` text,
+	`category_id` text,
+	`custom_fields` text DEFAULT '{}' NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`created_by` text NOT NULL,
+	`updated_by` text NOT NULL,
+	`version` integer DEFAULT 1 NOT NULL,
+	`deleted_at` integer,
+	FOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `idx_tx_occurred` ON `transactions` (`occurred_at`) WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE INDEX `idx_tx_account` ON `transactions` (`account_id`,`occurred_at`) WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE INDEX `idx_tx_direction` ON `transactions` (`direction`,`occurred_at`) WHERE deleted_at IS NULL;--> statement-breakpoint
 CREATE TABLE `goals` (
 	`id` text PRIMARY KEY NOT NULL,
 	`area_id` text NOT NULL,
@@ -95,6 +136,23 @@ CREATE TABLE `milestones` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_milestones_goal` ON `milestones` (`goal_id`,`sort_order`) WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE TABLE `jobs` (
+	`id` text PRIMARY KEY NOT NULL,
+	`kind` text NOT NULL,
+	`payload` text NOT NULL,
+	`run_at` integer NOT NULL,
+	`state` text DEFAULT 'pending' NOT NULL,
+	`attempts` integer DEFAULT 0 NOT NULL,
+	`max_attempts` integer DEFAULT 3 NOT NULL,
+	`last_error` text,
+	`locked_at` integer,
+	`dedupe_key` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_jobs_ready` ON `jobs` (`state`,`run_at`);--> statement-breakpoint
+CREATE INDEX `idx_jobs_dedupe` ON `jobs` (`dedupe_key`,`state`);--> statement-breakpoint
 CREATE TABLE `metrics` (
 	`id` text PRIMARY KEY NOT NULL,
 	`key` text NOT NULL,
@@ -152,6 +210,9 @@ CREATE TABLE `relations` (
 	`to_type` text NOT NULL,
 	`to_id` text NOT NULL,
 	`weight` real,
+	`evaluation` text,
+	`expected_rate_value` real,
+	`expected_rate_per` text,
 	`leads_metric_id` text,
 	`lag_days` integer,
 	`created_at` integer NOT NULL,
@@ -167,6 +228,35 @@ CREATE TABLE `settings` (
 	`key` text PRIMARY KEY NOT NULL,
 	`value` text NOT NULL,
 	`updated_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `goal_snapshots` (
+	`id` text PRIMARY KEY NOT NULL,
+	`goal_id` text NOT NULL,
+	`date` integer NOT NULL,
+	`mode` text NOT NULL,
+	`progress` real,
+	`momentum` real,
+	`confidence` real NOT NULL,
+	`degraded_reason` text,
+	`breakdown` text NOT NULL,
+	`velocity_7d` real,
+	`velocity_30d` real,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_goal_snapshots_unique` ON `goal_snapshots` (`goal_id`,`date`);--> statement-breakpoint
+CREATE INDEX `idx_goal_snapshots_series` ON `goal_snapshots` (`goal_id`,`date`);--> statement-breakpoint
+CREATE TABLE `metric_snapshots` (
+	`metric_id` text NOT NULL,
+	`period` text NOT NULL,
+	`period_start` integer NOT NULL,
+	`value` real NOT NULL,
+	`reading_count` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	PRIMARY KEY(`metric_id`, `period`, `period_start`),
+	FOREIGN KEY (`metric_id`) REFERENCES `metrics`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `areas` (

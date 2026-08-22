@@ -7,4 +7,7 @@ export * from './tables/work.js';
 export * from './tables/relations.js';
 export * from './tables/config.js';
 export * from './tables/system.js';
+export * from './tables/finance.js';
+export * from './tables/snapshots.js';
+export * from './tables/jobs.js';
 export * from './tables/settings.js';

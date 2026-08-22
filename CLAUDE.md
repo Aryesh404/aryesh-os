@@ -157,12 +157,30 @@ work — the import is the problem.
   `findExpressionCycle` before saving a derived metric.
 - **Nothing here may read a clock or use randomness** — both are lint errors.
 
+## Core notes (M4)
+
+- `createCore({ db, clock })` is the composition root: repos, event bus,
+  progress service, collectors, snapshotter, job queue.
+- `packages/core` is the only layer that knows both rows and the pure engine.
+  `buildGoalInput` maps rows → facts; nothing in `packages/intelligence` ever
+  sees a row.
+- **Snapshots start at M4 and cannot be backfilled honestly.** Every goal gets a
+  row every day, including unmeasurable ones — with the reason.
+- Collectors are pure `(period, data)` functions, which is what makes the same
+  code compute today and rebuild two years. Return `null` for "no data", never
+  `0`.
+- Re-running a collector is safe: readings dedupe on
+  `(metric, at, source, component)` and collectors stamp `at` at the period
+  start.
+- Use `createTestCore()` from `packages/core/src/testing.js` — real libSQL,
+  real migrations, controllable clock.
+
 ## Current state
 
-Phase 1 · **M1, M2, M3 complete.** 149 tests green. Next: **M4 — snapshots,
-collectors, jobs** (`docs/12-phase-plan.md`).
+Phase 1 · **M1–M4 complete.** 184 tests green. Next: **M5 — API & auth**
+(`docs/12-phase-plan.md`): tRPC routers, Argon2id + passkey, session cookies,
+device tokens, FTS, keyset pagination, typed errors.
 
-**M4 is next, and it starts writing snapshots — which cannot be backfilled
-honestly later.** A goal whose model changed last month cannot have last
-month's progress reconstructed. It is a 2-day milestone that everything in
-docs/04 depends on; do not let it slip behind the visible UI work.
+Snapshots are now being written (M4). The series they build is the only input
+trajectory has, and it cannot be reconstructed — so never "temporarily" disable
+the snapshot job to speed something up.

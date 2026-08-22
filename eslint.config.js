@@ -151,7 +151,9 @@ export default tseslint.config(
             'packages/intelligence must not read the clock. Take `now: number` as a parameter.',
         },
         {
-          selector: 'NewExpression[callee.name="Date"]',
+          // `new Date(ms)` is a pure conversion; only the zero-argument form
+          // reads the clock.
+          selector: 'NewExpression[callee.name="Date"][arguments.length=0]',
           message:
             'packages/intelligence must not read the clock. Take `now: number` as a parameter.',
         },
