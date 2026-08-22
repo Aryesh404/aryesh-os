@@ -136,6 +136,33 @@ export default tseslint.config(
   boundary('viz', ['domain', 'contracts']),
   boundary('graph', ['domain', 'contracts']),
 
+  // The purity rule covers imports; the clock has to be banned by syntax,
+  // because `Date.now()` needs no import. Every function whose result depends
+  // on "now" takes it as a parameter (docs/11 conventions).
+  {
+    files: ['packages/intelligence/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'MemberExpression[object.name="Date"][property.name="now"]',
+          message:
+            'packages/intelligence must not read the clock. Take `now: number` as a parameter.',
+        },
+        {
+          selector: 'NewExpression[callee.name="Date"]',
+          message:
+            'packages/intelligence must not read the clock. Take `now: number` as a parameter.',
+        },
+        {
+          selector: 'MemberExpression[object.name="Math"][property.name="random"]',
+          message: 'packages/intelligence must be deterministic. No randomness.',
+        },
+      ],
+    },
+  },
+
   appBoundary('api', ['domain', 'db', 'intelligence', 'core', 'contracts', 'agent']),
   appBoundary('web', ['domain', 'contracts', 'ui', 'viz', 'graph']),
   appBoundary('cli', ['domain', 'contracts']),

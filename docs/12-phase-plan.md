@@ -65,7 +65,7 @@ Enforced at the data layer rather than by convention:
 
 **D1 storage gate passed** — see docs/13.
 
-### M3 — Intelligence core (4d) ★
+### M3 — Intelligence core (4d) ★ — COMPLETE
 `packages/intelligence`, pure: progress computation, per-kind normalisation,
 weight renormalisation with degradation, confidence and staleness, the
 derived-metric expression language.
@@ -75,6 +75,30 @@ progress, normalised weights always sum to 1, metric normalisation is correct in
 all three directions, a stale metric lowers confidence, an unsatisfied
 contributor degrades rather than silently changing the method. **Zero I/O in this
 package**, enforced by lint.
+
+**Verified:** 149 tests green (88 in this package). Every named property holds,
+plus order-independence. Coverage 94% statements / 85% branches against the
+package's own floor.
+
+Purity is enforced two ways now: imports by boundary rule, and the clock by
+syntax — `Date.now()`, `new Date()`, and `Math.random()` are lint errors inside
+`packages/intelligence`, because a clock needs no import. Every function taking
+"now" takes it as a parameter.
+
+Also delivered:
+- **Two measurement modes wired end to end** (docs/03 §4.0). Completion consumes
+  `level` contributors; momentum consumes `rate` contributors and keeps bounded
+  signals as separate level indicators rather than averaging them into a
+  meaningless composite.
+- **Contributor overlap detection** (docs/03 §5 rule 5) — duplicates and
+  shared-source double counting flagged at configuration time.
+- **`docs/14` conformance test**: all four real goals — ₹5L MRR, ₹1 Cr corpus,
+  the engineering momentum goal, and the Aryesh OS ship/adopt split — now run
+  through the actual engine rather than being reasoned about on paper.
+
+Deviation: the expression language ships `rolling_mean(m, n)` and
+`rolling_sum(m, n)` instead of `rolling(m, fn, n)`. Same power, no need for
+name literals in the grammar.
 
 ### M4 — Snapshots, collectors, jobs (2d) ★
 Job queue, cron, the snapshotter, the v1 collectors (`03` §2), backfill.

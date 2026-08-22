@@ -138,13 +138,31 @@ work — the import is the problem.
 - After changing a table, run `npm run db:generate`. New tables go in
   `packages/db/src/schema/tables/` and are re-exported from `schema/index.ts`.
 
+## Intelligence core notes (M3)
+
+- `computeProgress(goal, { now })` is the entry point. It takes **facts, not
+  rows** — `packages/core` maps database rows into `GoalInput`/`ContributorInput`.
+- Completion mode consumes `evaluation: 'level'` contributors and returns a
+  0–1 percentage. Momentum mode consumes `evaluation: 'rate'` contributors,
+  returns a 0–1.5 score where >1 means exceeding, and **never returns a
+  percentage**. Bounded signals on a momentum goal come back as separate
+  `levels`, never blended in.
+- An unsatisfied contributor drops out, the rest renormalise, and the result
+  carries a `degraded` reason. It never silently computes a different way, and
+  it never counts an unknown as zero.
+- `findOverlaps()` before saving a progress model: two contributors reading the
+  same events double-count.
+- Expression language: `validateExpression` at save time, `evaluate` at read
+  time. Errors are values (`{ ok: false, error }`), never exceptions.
+  `findExpressionCycle` before saving a derived metric.
+- **Nothing here may read a clock or use randomness** — both are lint errors.
+
 ## Current state
 
-Phase 1 · **M1 and M2 complete.** 71 tests green. Next: **M3 — intelligence
-core** (`docs/12-phase-plan.md`): progress computation, weight renormalisation
-with degradation, confidence and staleness, the derived-metric expression
-language. All pure, all property-tested, zero I/O.
+Phase 1 · **M1, M2, M3 complete.** 149 tests green. Next: **M4 — snapshots,
+collectors, jobs** (`docs/12-phase-plan.md`).
 
-**M4 starts writing snapshots, which cannot be backfilled honestly later.** A
-goal whose model changed last month cannot have last month's progress
-reconstructed. Do not let it slip behind the visible UI work.
+**M4 is next, and it starts writing snapshots — which cannot be backfilled
+honestly later.** A goal whose model changed last month cannot have last
+month's progress reconstructed. It is a 2-day milestone that everything in
+docs/04 depends on; do not let it slip behind the visible UI work.
