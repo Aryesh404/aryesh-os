@@ -1,13 +1,23 @@
 import { z } from 'zod';
 import { search } from '@aryesh/db';
-import { NotMeasurableError } from '@aryesh/contracts';
+import { AppError, NotMeasurableError } from '@aryesh/contracts';
 import { normaliseMetric } from '@aryesh/intelligence';
-import { actorOf, captureProcedure, fullProcedure, protectedProcedure, publicProcedure, router } from '../trpc.js';
+import {
+  actorOf,
+  captureProcedure,
+  fullProcedure,
+  mergeRouters,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from '../trpc.js';
 import { authRouter } from './auth.js';
+import { parseTransactionCsv, type ParsedTransaction } from './csv.js';
 import { dataRouter } from './data.js';
 import {
   accountsRouter,
   areasRouter,
+  categoriesRouter,
   habitsRouter,
   milestonesRouter,
   projectsRouter,
@@ -53,6 +63,57 @@ const measure = router({
         throw new NotMeasurableError(result.reason, { input });
       }
       return result.result;
+    }),
+});
+
+/**
+ * docs/15 §5 M9 — finance data entry is tedious enough that without an importer
+ * it simply does not happen, and a finance goal fed by nothing is worse than no
+ * finance goal at all.
+ *
+ * A **mutation**, not a query, because a query serialises its input into the
+ * URL and a year of transactions does not fit there (the M8 lesson).
+ */
+const transactionsExtras = router({
+  importCsv: fullProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        /** Raw CSV text. Parsed server-side so the rules live in one place. */
+        csv: z.string().max(2_000_000),
+        currency: z.string().length(3).default('INR'),
+        /** Preview without writing. The UI always previews first. */
+        dryRun: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const parsed = parseTransactionCsv(input.csv);
+      if (parsed.errors.length > 0 && parsed.rows.length === 0) {
+        throw new AppError('INVALID_INPUT', 'no usable rows in this file', {
+          errors: parsed.errors.slice(0, 10),
+        });
+      }
+      if (input.dryRun) {
+        return { imported: 0, ...parsed, rows: parsed.rows.slice(0, 20) };
+      }
+
+      let imported = 0;
+      for (const row of parsed.rows) {
+        await ctx.core.repos.transactions.create(
+          {
+            accountId: input.accountId,
+            amountMinor: row.amountMinor,
+            currency: input.currency,
+            direction: row.direction,
+            occurredAt: row.occurredAt,
+            ...(row.description === undefined ? {} : { description: row.description }),
+          },
+          actorOf(ctx),
+        );
+        imported += 1;
+      }
+
+      return { imported, errors: parsed.errors, rows: [] as ParsedTransaction[] };
     }),
 });
 
@@ -111,6 +172,23 @@ const relations = router({
       return { ok: true as const };
     }),
 
+  setExpectedRate: captureProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        rate: z
+          .object({
+            value: z.number().positive(),
+            per: z.enum(['week', 'month', 'quarter']),
+          })
+          .nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.core.repos.relations.setExpectedRate(input.id, input.rate, actorOf(ctx));
+      return { ok: true as const };
+    }),
+
   remove: fullProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -146,7 +224,8 @@ export const appRouter = router({
   habits: habitsRouter,
   milestones: milestonesRouter,
   accounts: accountsRouter,
-  transactions: transactionsRouter,
+  transactions: mergeRouters(transactionsRouter, transactionsExtras),
+  categories: categoriesRouter,
 
   goals: goalsRouter,
   metrics: metricsRouter,

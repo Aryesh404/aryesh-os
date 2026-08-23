@@ -56,6 +56,21 @@ npm run db:migrate
 8. **AI proposes, the user accepts.** Never silently write memory, preferences,
    or configuration.
 
+## Settled architecture decisions
+
+- **React 19 + Vite stays.** No Next.js migration (`docs/16`, D13). One Vite-
+  specific line exists in the whole codebase, so the move would be cheap and
+  pointless: no SEO, no cold-load path, no images, every route behind a session
+  cookie — and Tauri wants the static bundle Vite already produces.
+- **Deployment is one origin**, with `/api/*` reverse-proxied to Fastify, so the
+  session cookie stays first-party (`docs/16 §3`). Never deploy web and API to
+  different registrable domains talking directly — `SameSite=Lax` stops sending
+  the cookie and the fix is a third-party cookie.
+- **Tauri, mobile, and CLI authenticate with `Authorization: Bearer` device
+  tokens**, not cookies. `resolvePrincipal` already prefers the header.
+- **The API is the only write path.** No second server runtime, no server
+  actions, no frontend-direct database access, no duplicated auth.
+
 ## Architecture in one paragraph
 
 npm workspaces + Turborepo. TypeScript everywhere, `strict` plus
@@ -189,6 +204,10 @@ work — the import is the problem.
   adding a searchable table, add it to `SEARCHABLE` in `packages/db/src/search.ts`.
 - `createTestApi()` from `apps/api/src/testing.ts` gives callers at any scope
   without a cookie round-trip.
+- The API does **not** migrate on boot — `npm run db:migrate` is a setup step,
+  so a mistyped `DATABASE_URL` cannot quietly create an empty database. Startup
+  checks for the schema and exits 1 naming the fix; without that check the first
+  symptom is an FTS trigger failing on a missing table.
 
 ## Web notes (M6)
 
@@ -237,11 +256,35 @@ work — the import is the problem.
 - A tRPC **query** puts its input in the URL. Anything carrying a payload of
   unbounded size must be a mutation even when it reads nothing.
 
+## Reachability notes (M9)
+
+- **Currency collectors return major units.** Storage is integer minor units;
+  metrics are plain numbers. `toMajor` in `collectors/builtin.ts` is the one
+  crossing point — without it a goal reports 100× its real progress.
+- **A decomposed metric's value is the sum of its components' latest readings**,
+  and its `lastReadingAt` is the *oldest* of them: a metric is only as current
+  as the part that stopped being fed.
+- The engine refuses a whole-metric reading once a metric has components, so
+  never offer one in the UI.
+- **A compounding projection stores only the assumption** (rate, contribution,
+  scenarios). `current` and `target` are read from the metric at compute time by
+  `resolveProjection`; storing copies would let the projection drift from the
+  readings. `StoredProjectionModel` (domain) and `ProjectionModel`
+  (intelligence) are deliberately different types.
+- `metrics.update` accepts everything `metrics.create` does. When they diverge,
+  a field becomes settable once and then unreachable forever.
+- CSV import is a **mutation** and always previews before writing. Amount
+  parsing disambiguates `45,000` from `1.234,56` by counting digits after the
+  separator — three means grouping.
+
 ## Current state
 
-**Phase 1 complete — M1 through M8.** 264 tests green. The loop runs end to end:
-capture → measure → trajectory → home, with honest refusals throughout and the
-data exportable.
+**Phase 1 complete — M1 through M8. Phase 2 M9 complete.** 286 tests green.
+
+M9 closed the reachability gap from `docs/15`: finance screens with CSV import,
+collector configuration and backfill, metric component decomposition,
+projection configuration, `expectedRate`, theme attachment, and metric preview.
+All four real goals are now enterable through the interface.
 
 Next is **Phase 2 — Visualization** (`docs/12-phase-plan.md`): the full visual
 system, the motion layer, the neural graph, the dashboard builder, and the Tauri

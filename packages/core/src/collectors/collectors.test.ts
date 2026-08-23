@@ -3,6 +3,13 @@ import { eq } from 'drizzle-orm';
 import { schema } from '@aryesh/db';
 import { startOfUtcMonth } from '@aryesh/intelligence';
 import { createTestCore, DAY, TEST_ACTOR, type TestCore } from '../testing.js';
+import {
+  financeExpenses,
+  financeNet,
+  financeNetWorth,
+  financeRevenue,
+  financeSavingsRate,
+} from './builtin.js';
 
 const { readings } = schema;
 
@@ -81,7 +88,8 @@ describe('backfill from existing history (docs/12 day-one problem)', () => {
       .orderBy(readings.at);
 
     expect(rows.length).toBeGreaterThanOrEqual(11);
-    expect(rows.every((r) => r.value === 10_000_000)).toBe(true);
+    // ₹1,00,000 a month, in the units a human types.
+    expect(rows.every((r) => r.value === 100_000)).toBe(true);
     expect(rows.every((r) => r.source === 'collector')).toBe(true);
     // Readings are stamped at the start of their calendar month.
     expect(rows.every((r) => r.at === startOfUtcMonth(r.at))).toBe(true);
@@ -122,7 +130,46 @@ describe('backfill from existing history (docs/12 day-one problem)', () => {
       await c.db.select().from(readings).where(eq(readings.metricId, m.id))
     ).find((r) => r.at === Date.UTC(2026, 6, 1));
 
-    expect(july?.value).toBe(12_500_000);
+    expect(july?.value).toBe(125_000);
+  });
+});
+
+/**
+ * Found in M9, the first time a collector was reachable from the interface.
+ *
+ * Storage holds money in integer minor units; metrics hold plain numbers. A
+ * currency collector crosses that boundary, and when it did not convert, a
+ * ₹1.5L month against a ₹5L target read `15000000 of 500000` and the goal
+ * reported 100% complete. The number looked entirely reasonable on a chart,
+ * which is what makes this worth a test rather than a comment.
+ */
+describe('currency collectors emit major units, not minor', () => {
+  const JULY = { key: '2026-07', start: Date.UTC(2026, 6, 1), end: Date.UTC(2026, 7, 1) };
+
+  it('reports a ₹1,00,000 month as 100000, not 10000000', async () => {
+    await seedTransactions(1);
+
+    const value = await financeRevenue.compute(
+      JULY,
+      c.db,
+    );
+
+    // Seeded as 10_000_000 paise = ₹1,00,000.
+    expect(value).toBe(100_000);
+  });
+
+  it('converts expenses, net, and net worth the same way', async () => {
+    await seedTransactions(1);
+    expect(await financeExpenses.compute(JULY, c.db)).toBe(40_000);
+    expect(await financeNet.compute(JULY, c.db)).toBe(60_000);
+    // One account seeded at 5_000_000 paise = ₹50,000.
+    expect(await financeNetWorth.compute(JULY, c.db)).toBe(50_000);
+  });
+
+  it('leaves a ratio alone — a percentage has no minor units', async () => {
+    await seedTransactions(1);
+    const rate = await financeSavingsRate.compute(JULY, c.db);
+    expect(rate).toBeCloseTo(60, 5);
   });
 });
 
@@ -159,9 +206,9 @@ describe('collector semantics', () => {
     const latest = async (id: string) =>
       (await c.repos.readings.latest(id))?.value;
 
-    expect(await latest(revenue.id)).toBe(10_000_000);
-    expect(await latest(expenses.id)).toBe(4_000_000);
-    expect(await latest(net.id)).toBe(6_000_000);
+    expect(await latest(revenue.id)).toBe(100_000);
+    expect(await latest(expenses.id)).toBe(40_000);
+    expect(await latest(net.id)).toBe(60_000);
     expect(await latest(rate.id)).toBeCloseTo(60, 5);
   });
 
@@ -211,7 +258,8 @@ describe('collector semantics', () => {
     await c.collectors.run('finance.net_worth', NOW - 60 * DAY, NOW + DAY);
 
     const rows = await c.db.select().from(readings).where(eq(readings.metricId, m.id));
-    expect(rows.every((r) => r.value === 6_500_000)).toBe(true);
+    // ₹80,000 assets less a ₹15,000 liability.
+    expect(rows.every((r) => r.value === 65_000)).toBe(true);
   });
 });
 
@@ -221,7 +269,8 @@ describe('collectors feed progress', () => {
     const m = await metric('monthly_revenue', 'finance.revenue');
     await c.repos.metrics.update(
       m.id,
-      { baseline: 0, target: 50_000_000 },
+      // ₹5,00,000 target against ₹1,00,000 months — both in major units.
+      { baseline: 0, target: 500_000 },
       TEST_ACTOR,
     );
 

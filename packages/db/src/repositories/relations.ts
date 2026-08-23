@@ -138,6 +138,43 @@ export function createRelationsRepository(deps: RepoDeps) {
       });
     },
 
+    /**
+     * docs/03 §4 — what "on pace" means for a momentum contributor.
+     *
+     * Without a stated rate the engine scores against the contributor's own
+     * trailing average, which means a goal can never report `advancing` — it is
+     * always, by construction, exactly as fast as itself.
+     */
+    async setExpectedRate(
+      id: string,
+      rate: { value: number; per: 'week' | 'month' | 'quarter' } | null,
+      ctx: Ctx,
+    ) {
+      const before = await repo.findById(id);
+      if (!before) throw new AppError('NOT_FOUND', `relation ${id} not found`, { id });
+      const now = clock();
+      const patch = {
+        expectedRateValue: rate?.value ?? null,
+        expectedRatePer: rate?.per ?? null,
+        // A stated rate is what makes this a rate contributor; without one the
+        // engine has nothing to evaluate a rate against.
+        evaluation: rate === null ? before.evaluation : ('rate' as const),
+      };
+      await db.update(relations).set(patch).where(eq(relations.id, id));
+      await db.insert(auditEvents).values({
+        id: newId(),
+        at: now,
+        actor: ctx.actor,
+        action: 'update',
+        subjectType: 'relation',
+        subjectId: id,
+        before,
+        after: { ...before, ...patch },
+        note: ctx.note ?? null,
+        executionId: ctx.executionId ?? null,
+      });
+    },
+
     async findById(id: string) {
       const rows = await db.select().from(relations).where(eq(relations.id, id)).limit(1);
       return rows[0];

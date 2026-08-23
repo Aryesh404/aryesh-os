@@ -206,7 +206,7 @@ lesson held every single milestone.
 
 ---
 
-### M9 — Close the reachability gap *(~4 days)*
+### M9 — Close the reachability gap — **COMPLETE**
 
 **Objective.** Make everything Phase 1 already computes reachable from the
 interface. No new engine capability.
@@ -239,6 +239,49 @@ used. *Mitigation:* ship a minimal CSV importer for transactions in this
 milestone, not later.
 
 **Dependencies.** None. Everything it needs exists.
+
+---
+
+#### M9 outcome
+
+All seven surfaces shipped, and all four real goals were entered through the
+interface with nothing hand-edited. 286 tests green.
+
+| Goal | Before M9 | After |
+|---|---|---|
+| ₹5L MRR | manual readings only | fed by `finance.revenue` from imported bank CSV — **30%**, "150000 of 500000" |
+| ₹1 Cr corpus | plain metric, linear projection | decomposed into contributions/returns, compounding at 11% with an 8.8–13.2% fan — **51.6%** |
+| Engineering momentum | scored against its own average | scored against stated rates — **1.36**, "6 in 90d vs 1/month" |
+| Aryesh OS adoption | — | momentum goal, no percentage |
+
+**Running it found three real bugs that 277 passing tests did not.** All three
+were invisible for the same reason: the code paths had never been reachable.
+
+1. **Currency collectors emitted minor units into metrics.** Storage keeps money
+   in integer paise; metrics hold plain numbers. `finance.revenue` returned the
+   raw sum, so a ₹1.5L month against a ₹5L target read `15000000 of 500000` and
+   the goal reported **100% complete** — a 100× error that looked entirely
+   plausible on a chart. Five existing tests asserted the wrong behaviour and
+   were rewritten; one had its target set in paise to match.
+2. **A decomposed metric took its value from whichever component was written
+   last.** Recording ₹48.6L of contributions and ₹2.9L of returns left the
+   ₹1 Cr goal reporting **2.9%**. `lastValue` is now the sum of components, and
+   staleness is judged by the *stalest* part rather than the freshest.
+3. **A compounding projection could not work at all.** The engine needs the
+   corpus's current value and target; the API's stored model omitted both and
+   the service hid it with `as never`. Those numbers belong to the metric and
+   are now read at compute time, so the projection cannot drift from the
+   readings. Stored and engine projection models are now distinct types.
+
+Two smaller ones, both mine: a stale-closure bug meant two rapid "Add component"
+clicks produced one row with a colliding key, and the reading dialog offered
+"Whole metric" on a decomposed metric — something the engine correctly refuses.
+
+Trajectory itself still reports *"not enough history yet — 5 days of data
+needed, 1 so far"* for all four goals, which is correct: snapshots start when
+the goal does and cannot be backfilled. The compounding path is covered by
+`packages/core/src/trajectory/service.test.ts`, which drives the real
+snapshotter over 40 days rather than inserting rows.
 
 ---
 

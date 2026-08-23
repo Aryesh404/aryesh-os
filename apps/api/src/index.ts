@@ -52,6 +52,25 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const { db, client } = createDb({ url: env.DATABASE_URL, root: repoRoot });
 await configureConnection(client, env.DATABASE_URL);
 const backupDir = resolve(repoRoot, 'data/backups');
+
+/**
+ * The schema comes from `npm run db:migrate`, not from startup. Migrating
+ * implicitly would let a mistyped DATABASE_URL quietly create an empty database
+ * and look healthy. It is checked here because otherwise the first symptom is a
+ * trigger failing inside `ensureSearchIndex`, which names neither the cause nor
+ * the fix.
+ */
+const migrated = await client.execute(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'goals'",
+);
+if (migrated.rows.length === 0) {
+  app.log.error(
+    { url: env.DATABASE_URL },
+    'database has no schema — run `npm run db:migrate` first',
+  );
+  process.exit(1);
+}
+
 await ensureSearchIndex(db);
 
 const core = createCore({ db, client, backupDir });

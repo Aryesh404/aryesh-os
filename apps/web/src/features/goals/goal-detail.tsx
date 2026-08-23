@@ -6,6 +6,7 @@ import { date } from '../../lib/format.js';
 import { ExplainPanel, type Outcome } from './explain-panel.tsx';
 import { ProgressModelEditor } from './progress-model-editor.tsx';
 import { TrajectoryPanel } from './trajectory-panel.tsx';
+import { GoalSettings } from './goal-settings.tsx';
 import { ErrorBoundary } from '../../components/error-boundary.tsx';
 import type { Route } from '../../app.js';
 
@@ -75,6 +76,7 @@ export function GoalDetail({
       </ErrorBoundary>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <GoalSettings goal={goal.data} />
         <ProgressModelEditor goalId={id} />
 
         <Card title="How this number is produced">

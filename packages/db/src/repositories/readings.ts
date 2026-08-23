@@ -79,23 +79,68 @@ export function createReadingsRepository(deps: RepoDeps) {
       return row;
     },
 
-    /** Keeps `metrics.lastReadingAt` / `lastValue` true after any write. */
+    /**
+     * Keeps `metrics.lastReadingAt` / `lastValue` true after any write.
+     *
+     * A decomposed metric has no single latest reading — it has one per
+     * component, and the metric's value is their sum. Taking whichever row was
+     * written last would make the corpus read as whatever part happened to be
+     * saved second: recording ₹48L of contributions and ₹2.9L of returns left
+     * the ₹1 Cr goal reporting 2.9%.
+     */
     async refreshDenormalised(metricId: string): Promise<void> {
-      const latest = (
+      const metric = (
         await db
-          .select({ at: readings.at, value: readings.value })
-          .from(readings)
-          .where(eq(readings.metricId, metricId))
-          .orderBy(desc(readings.at))
+          .select({ components: metrics.components })
+          .from(metrics)
+          .where(eq(metrics.id, metricId))
           .limit(1)
       )[0];
 
+      const componentKeys = (metric?.components ?? []).map((c) => c.key);
+
+      if (componentKeys.length === 0) {
+        const latest = (
+          await db
+            .select({ at: readings.at, value: readings.value })
+            .from(readings)
+            .where(eq(readings.metricId, metricId))
+            .orderBy(desc(readings.at))
+            .limit(1)
+        )[0];
+
+        await db
+          .update(metrics)
+          .set({
+            lastReadingAt: latest?.at ?? null,
+            lastValue: latest?.value ?? null,
+          })
+          .where(eq(metrics.id, metricId));
+        return;
+      }
+
+      let total: number | null = null;
+      let mostRecent: number | null = null;
+
+      for (const key of componentKeys) {
+        const latest = (
+          await db
+            .select({ at: readings.at, value: readings.value })
+            .from(readings)
+            .where(and(eq(readings.metricId, metricId), eq(readings.component, key)))
+            .orderBy(desc(readings.at))
+            .limit(1)
+        )[0];
+        if (latest === undefined) continue;
+        total = (total ?? 0) + latest.value;
+        // The metric is only as current as its stalest part, so the *oldest*
+        // component reading is what staleness should be judged on.
+        mostRecent = mostRecent === null ? latest.at : Math.min(mostRecent, latest.at);
+      }
+
       await db
         .update(metrics)
-        .set({
-          lastReadingAt: latest?.at ?? null,
-          lastValue: latest?.value ?? null,
-        })
+        .set({ lastReadingAt: mostRecent, lastValue: total })
         .where(eq(metrics.id, metricId));
     },
 

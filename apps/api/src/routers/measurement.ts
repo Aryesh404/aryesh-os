@@ -49,9 +49,15 @@ const metricCore = {
 
 const metricsCrud = crudRouter((repos) => repos.metrics, {
   create: z.object({ key: z.string().regex(/^[a-z][a-z0-9_]*$/).max(63), ...metricCore }),
+  // Create and update accepted different fields, which is why a collector or a
+  // component decomposition could only ever be set at creation time and was
+  // unreachable from the interface (docs/15 §0).
   update: z.object({
     name: metricCore.name.optional(),
     areaId: z.string().nullable().optional(),
+    unit: metricCore.unit.optional(),
+    direction: metricCore.direction.optional(),
+    source: metricCore.source.optional(),
     baseline: z.number().finite().nullable().optional(),
     target: z.number().finite().nullable().optional(),
     targetDate: timestamp.nullable().optional(),
@@ -59,6 +65,8 @@ const metricsCrud = crudRouter((repos) => repos.metrics, {
     cadence: metricCore.cadence.optional(),
     aggregation: metricCore.aggregation.optional(),
     expression: z.string().max(2000).nullable().optional(),
+    collectorKey: z.string().max(120).nullable().optional(),
+    components: metricCore.components.nullable(),
     bounded: z.boolean().optional(),
     private: z.boolean().optional(),
     customFields,

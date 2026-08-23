@@ -5,10 +5,11 @@ import {
   computeTrajectory,
   DAY_MS,
   type ComponentVelocity,
+  type ProjectionModel,
   type SnapshotPoint,
   type Trajectory,
 } from '@aryesh/intelligence';
-import { NotFoundError } from '@aryesh/domain';
+import { NotFoundError, type ProjectionModel as StoredProjectionModel } from '@aryesh/domain';
 
 const { goals, goalSnapshots, metrics, readings } = schema;
 
@@ -66,6 +67,7 @@ export function createTrajectoryService({ db, clock }: TrajectoryServiceDeps) {
       }));
 
       const attribution = await componentAttribution(db, goal.progressModel, now);
+      const projection = await resolveProjection(db, goal);
 
       return computeTrajectory({
         measurementMode: goal.measurementMode,
@@ -73,9 +75,7 @@ export function createTrajectoryService({ db, clock }: TrajectoryServiceDeps) {
         now,
         ...(goal.targetDate === null ? {} : { targetDate: goal.targetDate }),
         ...(goal.startDate === null ? {} : { startDate: goal.startDate }),
-        ...(goal.projectionModel === null
-          ? {}
-          : { projection: goal.projectionModel as never }),
+        ...(projection === null ? {} : { projection }),
         ...(attribution.length === 0 ? {} : { components: attribution }),
       });
     },
@@ -83,6 +83,46 @@ export function createTrajectoryService({ db, clock }: TrajectoryServiceDeps) {
 }
 
 export type TrajectoryService = ReturnType<typeof createTrajectoryService>;
+
+/**
+ * docs/04 §2 — a compounding projection needs the corpus's current value and
+ * its target, and neither is stored on the goal.
+ *
+ * They belong to the metric. Persisting a copy alongside the rate assumption
+ * would mean the projection silently drifted from the readings the moment one
+ * landed — a stale denominator producing a confident, wrong curve. So the
+ * stored model carries only the *assumption*, and the live numbers are read
+ * here, at compute time.
+ *
+ * If the metric has no target there is nothing to compound toward, and the
+ * model degrades to linear rather than inventing a denominator.
+ */
+async function resolveProjection(
+  db: Db,
+  goal: {
+    projectionModel: StoredProjectionModel | null;
+    progressModel: { mode: string; metricId?: string };
+  },
+): Promise<ProjectionModel | null> {
+  const model = goal.projectionModel;
+  if (model === null) return null;
+  // `linear` and `none` carry no live values, so they cross over unchanged.
+  if (model.kind !== 'compounding') return model;
+
+  const metricId = goal.progressModel.mode === 'metric' ? goal.progressModel.metricId : undefined;
+  if (metricId === undefined) return { kind: 'linear' };
+
+  const metric = (
+    await db.select().from(metrics).where(eq(metrics.id, metricId)).limit(1)
+  )[0];
+  if (!metric || metric.target === null) return { kind: 'linear' };
+
+  return {
+    ...model,
+    current: metric.lastValue ?? metric.baseline ?? 0,
+    target: metric.target,
+  };
+}
 
 /**
  * docs/03 §11 — where the growth actually came from. Progress driven by

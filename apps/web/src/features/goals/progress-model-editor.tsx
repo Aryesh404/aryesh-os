@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, Empty, ErrorNote, Select, Subtle } from '../../components/ui.tsx';
+import { Card, Empty, ErrorNote, Input, Select, Subtle } from '../../components/ui.tsx';
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
 import { pct } from '../../lib/format.js';
@@ -27,6 +27,7 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const goal = useApi(['goals', goalId], () => trpc.goals.byId.query({ id: goalId }));
+  const isMomentum = goal.data?.measurementMode === 'momentum';
   const edges = useApi(['goals', goalId, 'contributors'], () =>
     trpc.relations.contributorsOf.query({ goalId }),
   );
@@ -43,6 +44,14 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
     keys.goal(goalId),
     keys.goals,
   ];
+
+  const setExpectedRate = useApiMutation(
+    (input: {
+      id: string;
+      rate: { value: number; per: 'week' | 'month' | 'quarter' } | null;
+    }) => trpc.relations.setExpectedRate.mutate(input),
+    { invalidates },
+  );
 
   const addContributor = useApiMutation(
     (input: { kind: ContributorKind; id: string }) =>
@@ -169,6 +178,58 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
                 >
                   ×
                 </button>
+
+                {/* docs/03 §4 — without a stated cadence the engine scores a
+                    momentum contributor against its own trailing average, so
+                    the goal is always exactly as fast as itself and can never
+                    read `advancing`. */}
+                {isMomentum && (
+                  <div className="col-span-4 flex items-center gap-2 text-[11px] text-fg-subtle pl-1">
+                    <span>expected</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      className="w-16 h-6 text-[11px]"
+                      aria-label={`Expected rate for ${labelFor(edge.fromType, edge.fromId)}`}
+                      defaultValue={edge.expectedRateValue ?? ''}
+                      onBlur={(e) => {
+                        const value = Number(e.target.value);
+                        setExpectedRate.mutate({
+                          id: edge.id,
+                          rate:
+                            e.target.value === '' || !Number.isFinite(value) || value <= 0
+                              ? null
+                              : { value, per: edge.expectedRatePer ?? 'month' },
+                        });
+                      }}
+                    />
+                    <span>per</span>
+                    <Select
+                      className="w-24 h-6 text-[11px]"
+                      aria-label={`Rate period for ${labelFor(edge.fromType, edge.fromId)}`}
+                      value={edge.expectedRatePer ?? 'month'}
+                      onChange={(e) =>
+                        setExpectedRate.mutate({
+                          id: edge.id,
+                          rate: {
+                            value: edge.expectedRateValue ?? 1,
+                            per: e.target.value as 'week' | 'month' | 'quarter',
+                          },
+                        })
+                      }
+                    >
+                      <option value="week">week</option>
+                      <option value="month">month</option>
+                      <option value="quarter">quarter</option>
+                    </Select>
+                    {edge.expectedRateValue === null && (
+                      <span className="text-at-risk">
+                        ◆ no stated rate — scored against its own average
+                      </span>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}

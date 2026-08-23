@@ -198,6 +198,26 @@ export const accountsRouter = crudRouter((repos) => repos.accounts, {
   }),
 });
 
+/** docs/08 §1 — user-named categories, statuses, and tags. */
+export const categoriesRouter = crudRouter((repos) => repos.categories, {
+  create: z.object({
+    scope: z.string().min(1).max(60),
+    key: z.string().regex(/^[a-z][a-z0-9_]*$/).max(60),
+    label: z.string().min(1).max(120),
+    color: z.string().max(20).optional(),
+    semantics: z.string().max(40).optional(),
+    sortOrder: z.number().int().default(0),
+    customFields,
+  }),
+  update: z.object({
+    label: z.string().min(1).max(120).optional(),
+    color: z.string().max(20).nullable().optional(),
+    semantics: z.string().max(40).nullable().optional(),
+    sortOrder: z.number().int().optional(),
+    customFields,
+  }),
+});
+
 export const transactionsRouter = crudRouter(
   (repos) => repos.transactions,
   {

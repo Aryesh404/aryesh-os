@@ -8,6 +8,7 @@ const NAV: Array<{ route: Route; label: string }> = [
   { route: { name: 'home' }, label: 'Today' },
   { route: { name: 'goals' }, label: 'Goals' },
   { route: { name: 'metrics' }, label: 'Metrics' },
+  { route: { name: 'finance' }, label: 'Finance' },
   { route: { name: 'work' }, label: 'Work' },
   { route: { name: 'structure' }, label: 'Structure' },
 ];

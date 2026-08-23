@@ -39,6 +39,17 @@ const sumTransactions = async (
   return { total: row?.total ?? 0, count: row?.count ?? 0 };
 };
 
+/**
+ * Storage keeps money in integer minor units; metrics hold plain numbers in the
+ * unit a human would type (CLAUDE.md, data conventions). Every currency
+ * collector crosses that boundary, so the conversion happens here, once.
+ *
+ * Without it a ₹5L target fed by a ₹1.5L month reads `15000000 of 500000` and
+ * the goal reports 100% complete — a 100× error that looks entirely plausible
+ * on a chart.
+ */
+const toMajor = (minor: number): number => minor / 100;
+
 export const financeRevenue: Collector = {
   key: 'finance.revenue',
   name: 'Revenue',
@@ -46,7 +57,7 @@ export const financeRevenue: Collector = {
   cadence: 'monthly',
   async compute(period, db) {
     const { total, count } = await sumTransactions(db, 'in', period.start, period.end);
-    return count === 0 ? null : total;
+    return count === 0 ? null : toMajor(total);
   },
 };
 
@@ -57,7 +68,7 @@ export const financeExpenses: Collector = {
   cadence: 'monthly',
   async compute(period, db) {
     const { total, count } = await sumTransactions(db, 'out', period.start, period.end);
-    return count === 0 ? null : total;
+    return count === 0 ? null : toMajor(total);
   },
 };
 
@@ -70,7 +81,7 @@ export const financeNet: Collector = {
     const income = await sumTransactions(db, 'in', period.start, period.end);
     const spend = await sumTransactions(db, 'out', period.start, period.end);
     if (income.count === 0 && spend.count === 0) return null;
-    return income.total - spend.total;
+    return toMajor(income.total - spend.total);
   },
 };
 
@@ -104,7 +115,9 @@ export const financeNetWorth: Collector = {
       .where(isNull(accounts.deletedAt));
     if (rows.length === 0) return null;
     void period;
-    return rows.reduce((sum, a) => sum + (a.isLiability ? -a.balance : a.balance), 0);
+    return toMajor(
+      rows.reduce((sum, a) => sum + (a.isLiability ? -a.balance : a.balance), 0),
+    );
   },
 };
 

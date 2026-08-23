@@ -154,3 +154,78 @@ describe('history outlives the metric', () => {
     expect((await t.repos.readings.latest(m.id))?.value).toBe(100_000);
   });
 });
+
+/**
+ * Found in M9, the first time a metric could be decomposed from the interface.
+ *
+ * A decomposed metric has one latest reading *per component*, and its value is
+ * their sum. Taking whichever row was written last made a ₹51L corpus read as
+ * ₹2.9L — the returns component — and the ₹1 Cr goal reported 2.9%.
+ */
+describe('decomposed metrics', () => {
+  it('values a decomposed metric as the sum of its components', async () => {
+    const m = await t.repos.metrics.create(
+      {
+        key: 'invested_corpus',
+        name: 'Invested corpus',
+        unit: 'currency',
+        direction: 'increase',
+        cadence: 'monthly',
+        source: 'manual',
+        aggregation: 'last',
+        baseline: 0,
+        target: 10_000_000,
+        components: [
+          { key: 'contributions', label: 'My contributions', controllable: true },
+          { key: 'returns', label: 'Market returns', controllable: false },
+        ],
+      } as never,
+      TEST_ACTOR,
+    );
+
+    await t.repos.readings.record(
+      { metricId: m.id, at: T0, value: 4_865_000, component: 'contributions' },
+      TEST_ACTOR,
+    );
+    await t.repos.readings.record(
+      { metricId: m.id, at: T0, value: 291_900, component: 'returns' },
+      TEST_ACTOR,
+    );
+
+    const after = await t.repos.metrics.findById(m.id);
+    expect(after?.lastValue).toBe(5_156_900);
+  });
+
+  it('judges staleness by the stalest component, not the freshest', async () => {
+    const m = await t.repos.metrics.create(
+      {
+        key: 'split_metric',
+        name: 'Split',
+        unit: 'count',
+        direction: 'increase',
+        cadence: 'monthly',
+        source: 'manual',
+        aggregation: 'last',
+        components: [
+          { key: 'a', label: 'A', controllable: true },
+          { key: 'b', label: 'B', controllable: true },
+        ],
+      } as never,
+      TEST_ACTOR,
+    );
+
+    await t.repos.readings.record(
+      { metricId: m.id, at: T0 - 30 * DAY, value: 1, component: 'a' },
+      TEST_ACTOR,
+    );
+    await t.repos.readings.record(
+      { metricId: m.id, at: T0, value: 2, component: 'b' },
+      TEST_ACTOR,
+    );
+
+    const after = await t.repos.metrics.findById(m.id);
+    // A metric is only as current as the part that stopped being fed.
+    expect(after?.lastReadingAt).toBe(T0 - 30 * DAY);
+    expect(after?.lastValue).toBe(3);
+  });
+});

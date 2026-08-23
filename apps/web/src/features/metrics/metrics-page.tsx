@@ -3,10 +3,13 @@ import { Button, Dialog, Empty, ErrorNote, Field, Input, Select, Skeleton, Subtl
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
 import { date, dateInput, fromDateInput, metricValue, relativeDays } from '../../lib/format.js';
+import { MetricSettings } from './metric-settings.tsx';
+import { BackfillCard } from './backfill-card.tsx';
 
 export function MetricsPage() {
   const [creating, setCreating] = useState(false);
   const [recordingFor, setRecordingFor] = useState<string | null>(null);
+  const [configuring, setConfiguring] = useState<string | null>(null);
 
   const metrics = useApi(keys.metrics, () => trpc.metrics.list.query({ limit: 200 }));
   const stale = useApi(keys.needingData, () => trpc.readings.needingData.query({}));
@@ -69,6 +72,16 @@ export function MetricsPage() {
                     unbounded
                   </span>
                 )}
+                {metric.collectorKey !== null && (
+                  <span className="text-[10px] mono text-accent" title="fed by a collector">
+                    ⟲ {metric.collectorKey}
+                  </span>
+                )}
+                {(metric.components?.length ?? 0) > 0 && (
+                  <span className="text-[10px] uppercase tracking-wider text-fg-subtle">
+                    {metric.components?.length} parts
+                  </span>
+                )}
               </div>
               <div className="text-[12px] text-fg-subtle mt-0.5">
                 {metric.direction} · {metric.cadence}
@@ -89,12 +102,23 @@ export function MetricsPage() {
               </div>
             </div>
 
+            <Button variant="ghost" onClick={() => setConfiguring(metric.id)}>
+              Configure
+            </Button>
             <Button onClick={() => setRecordingFor(metric.id)}>Record</Button>
           </div>
         ))}
       </div>
 
+      <BackfillCard />
+
       {creating && <NewMetricDialog onClose={() => setCreating(false)} />}
+      {configuring && (
+        <MetricSettings
+          metric={(metrics.data?.items ?? []).find((m) => m.id === configuring)!}
+          onClose={() => setConfiguring(null)}
+        />
+      )}
       {recordingFor && (
         <RecordReadingDialog
           metric={(metrics.data?.items ?? []).find((m) => m.id === recordingFor)!}
@@ -321,12 +345,21 @@ function RecordReadingDialog({
   metric,
   onClose,
 }: {
-  metric: { id: string; name: string; unit: string };
+  metric: {
+    id: string;
+    name: string;
+    unit: string;
+    components?: Array<{ key: string; label: string; controllable: boolean }> | null;
+  };
   onClose: () => void;
 }) {
   const [value, setValue] = useState('');
   const [when, setWhen] = useState(dateInput(Date.now()));
   const [note, setNote] = useState('');
+  const components = metric.components ?? [];
+  // The engine refuses a whole-metric reading once a metric is decomposed, so
+  // offering "Whole metric" would be offering something that cannot be saved.
+  const [component, setComponent] = useState(components[0]?.key ?? '');
 
   const record = useApiMutation(
     () =>
@@ -334,6 +367,7 @@ function RecordReadingDialog({
         metricId: metric.id,
         at: fromDateInput(when),
         value: Number(value),
+        ...(component ? { component } : {}),
         ...(note ? { note } : {}),
       }),
     {
@@ -365,6 +399,28 @@ function RecordReadingDialog({
             <Input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
           </Field>
         </div>
+
+        {/* A decomposed metric is fed per part, which is what lets the
+            trajectory separate durable growth from borrowed (docs/03 §11). */}
+        {components.length > 0 && (
+          <Field
+            label="Component"
+            hint="Which part moved. A decomposed metric is only ever fed per part, and that split is what separates durable growth from borrowed."
+          >
+            <Select
+              value={component}
+              onChange={(e) => setComponent(e.target.value)}
+              aria-label="Component"
+              required
+            >
+              {components.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label} {c.controllable ? '· durable' : '· market-dependent'}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <Field label="Note" hint="Optional context for this reading">
           <Input value={note} onChange={(e) => setNote(e.target.value)} />

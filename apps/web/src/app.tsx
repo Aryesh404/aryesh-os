@@ -12,6 +12,7 @@ import { GoalsPage } from './features/goals/goals-page.tsx';
 import { GoalDetail } from './features/goals/goal-detail.tsx';
 import { MetricsPage } from './features/metrics/metrics-page.tsx';
 import { WorkPage } from './features/work/work-page.tsx';
+import { FinancePage } from './features/finance/finance-page.tsx';
 
 /**
  * Routing is a hash route plus a small union rather than a router library.
@@ -24,6 +25,7 @@ export type Route =
   | { name: 'goals' }
   | { name: 'goal'; id: string }
   | { name: 'metrics' }
+  | { name: 'finance' }
   | { name: 'work' }
   | { name: 'structure' };
 
@@ -36,6 +38,7 @@ function parseHash(hash: string): Route {
   if (head === 'goals' && id) return { name: 'goal', id };
   if (head === 'goals') return { name: 'goals' };
   if (head === 'metrics') return { name: 'metrics' };
+  if (head === 'finance') return { name: 'finance' };
   if (head === 'work') return { name: 'work' };
   if (head === 'structure') return { name: 'structure' };
   return { name: 'home' };
@@ -102,7 +105,8 @@ export function App(): React.JSX.Element {
         {route.name === 'goals' && <GoalsPage navigate={navigate} />}
         {route.name === 'goal' && <GoalDetail id={route.id} navigate={navigate} />}
         {route.name === 'metrics' && <MetricsPage />}
-        {route.name === 'work' && <WorkPage />}
+        {route.name === 'finance' && <FinancePage />}
+      {route.name === 'work' && <WorkPage />}
         {route.name === 'structure' && <StructurePage />}
       </ErrorBoundary>
     </Shell>

@@ -110,6 +110,7 @@ export function CommandPalette({
       ['Today', { name: 'home' }],
       ['Goals', { name: 'goals' }],
       ['Metrics', { name: 'metrics' }],
+      ['Finance', { name: 'finance' }],
       ['Work', { name: 'work' }],
       ['Structure', { name: 'structure' }],
     ];

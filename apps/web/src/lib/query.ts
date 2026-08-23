@@ -55,5 +55,9 @@ export const keys = {
   tasks: ['tasks'] as const,
   habits: ['habits'] as const,
   milestones: ['milestones'] as const,
+  accounts: ['accounts'] as const,
+  transactions: ['transactions'] as const,
+  categories: ['categories'] as const,
+  collectors: ['collectors'] as const,
   needingData: ['readings', 'needingData'] as const,
 };

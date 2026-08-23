@@ -39,6 +39,11 @@ const projectionModel = z.discriminatedUnion('kind', [
       per: z.literal('month'),
     }),
     scenarios: z.array(z.number()).max(5).optional(),
+    /**
+     * `current` and `target` are deliberately NOT stored here. The engine needs
+     * them, but they belong to the metric and would go stale the moment a
+     * reading landed. `packages/core` reads them at compute time instead.
+     */
   }),
   z.object({ kind: z.literal('none') }),
 ]);
