@@ -175,11 +175,27 @@ work — the import is the problem.
 - Use `createTestCore()` from `packages/core/src/testing.js` — real libSQL,
   real migrations, controllable clock.
 
+## API notes (M5)
+
+- Procedures come in four levels: `publicProcedure` (health, auth status,
+  login), `protectedProcedure` (read), `captureProcedure` (record observations),
+  `fullProcedure` (structural change and deletion).
+- `crudRouter` in `apps/api/src/routers/crud.ts` covers the objects where CRUD
+  is the whole story. It is **generic over the row type** — do not let it
+  degrade to `unknown` or the web client loses its end-to-end types.
+- Goals, metrics, relations, and progress are hand-written because they have
+  real behaviour.
+- Search is FTS5 maintained by triggers created in `ensureSearchIndex`. After
+  adding a searchable table, add it to `SEARCHABLE` in `packages/db/src/search.ts`.
+- `createTestApi()` from `apps/api/src/testing.ts` gives callers at any scope
+  without a cookie round-trip.
+
 ## Current state
 
-Phase 1 · **M1–M4 complete.** 184 tests green. Next: **M5 — API & auth**
-(`docs/12-phase-plan.md`): tRPC routers, Argon2id + passkey, session cookies,
-device tokens, FTS, keyset pagination, typed errors.
+Phase 1 · **M1–M5 complete.** 220 tests green. Next: **M6 — capture &
+structure UI** (`docs/12-phase-plan.md`): areas and themes, the goal builder
+with its progress-model editor, metric creation with backfill, quick capture,
+and readings entry. Passkey login lands here too.
 
 Snapshots are now being written (M4). The series they build is the only input
 trajectory has, and it cannot be reconstructed — so never "temporarily" disable

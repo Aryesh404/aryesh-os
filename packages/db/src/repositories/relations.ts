@@ -20,12 +20,12 @@ export interface CreateRelationInput {
   toType: ObjectKind;
   toId: string;
   /** `contributes_to` only. Relative; normalised at evaluation time. */
-  weight?: number;
+  weight?: number | undefined;
   /** `contributes_to` only. Null derives it from the goal's measurement mode. */
-  evaluation?: 'level' | 'rate';
-  expectedRate?: { value: number; per: 'week' | 'month' | 'quarter' };
+  evaluation?: 'level' | 'rate' | undefined;
+  expectedRate?: { value: number; per: 'week' | 'month' | 'quarter' } | undefined;
   /** `measures` only (docs/03 §10). */
-  leads?: { targetMetricId: string; lagDays: number };
+  leads?: { targetMetricId: string; lagDays: number } | undefined;
 }
 
 export class InvalidRelationError extends AppError {

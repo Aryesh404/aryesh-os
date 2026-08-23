@@ -10,4 +10,5 @@ export * from './tables/system.js';
 export * from './tables/finance.js';
 export * from './tables/snapshots.js';
 export * from './tables/jobs.js';
+export * from './tables/auth.js';
 export * from './tables/settings.js';

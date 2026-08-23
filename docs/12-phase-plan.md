@@ -134,9 +134,37 @@ term always evaluated to 1 and did nothing. And low freshness now explains
 itself rather than only formal staleness — a metric 45 days behind a monthly
 cadence was dropping confidence to 0.5 while saying nothing about why.
 
-### M5 — API & auth (2d)
-tRPC routers, Argon2id + passkey, session cookies, device tokens, FTS, keyset
-pagination, typed errors.
+### M5 — API & auth (2d) — COMPLETE
+tRPC routers, Argon2id, session cookies, device tokens, FTS, keyset pagination,
+typed errors.
+
+**Verified:** 220 tests green, plus the running server probed over real HTTP:
+`/health` 200, anonymous read 401, public `auth.status` 200, an unmeasurable
+metric **422 rather than 500**, `auth.initialise` setting an `HttpOnly`
+`SameSite` cookie, and authenticated reads/writes and search all working.
+
+- **Three scopes, not one.** A session is always `full`; a device token carries
+  the scope it was issued with. A phone can record a reading without being able
+  to restructure the goal tree, and the refusal names the scope it needed.
+- **Nothing plaintext.** Passwords are Argon2id (verified by asserting the
+  `$argon2id$` prefix on the stored hash); session and device tokens are stored
+  as SHA-256 digests, so a leaked database hands over neither. A device token's
+  plaintext exists exactly once, at issue.
+- **Password change bumps a generation**, which invalidates every existing
+  session in one write rather than enumerating them.
+- **FTS5 is maintained by SQLite triggers**, not application code, so anything
+  that writes a row keeps search correct — including soft delete, which removes
+  the row from the index rather than leaving an archived goal answering queries.
+  User input is tokenised and quoted, so `₹5L MRR` searches instead of erroring.
+
+**Passkeys deferred.** The tables and challenge store are in place, but WebAuthn
+is a browser ceremony with no UI to drive it until M6. Shipping a server half
+now would be untested surface area; it lands with the login screen.
+
+Bug found: a goal using the `mode: 'metric'` shorthand names its metric in the
+progress model rather than through a `contributes_to` edge, so the invalidation
+walk never reached it and its cached progress went stale silently. The walk now
+also matches goals by `json_extract(progress_model, '$.metricId')`.
 
 ### M6 — Capture & structure UI (5d)
 Areas and **themes**; the goal builder including the **progress-model editor**

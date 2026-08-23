@@ -1,12 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { TRPCError } from '@trpc/server';
-import { createDb } from '@aryesh/db';
-import { appRouter } from './index.js';
+import { createTestApi, type TestApi } from '../testing.js';
 
-const caller = () => {
-  const { db } = createDb({ url: ':memory:' });
-  return appRouter.createCaller({ db, now: () => 1_700_000_000_000 });
-};
+let api: TestApi;
+beforeEach(async () => {
+  api = await createTestApi();
+});
+afterEach(() => api.close());
+
+const caller = () => api.anonymous;
 
 describe('health', () => {
   it('reports ok with an injected clock', async () => {

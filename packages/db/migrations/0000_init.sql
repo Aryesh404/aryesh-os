@@ -1,3 +1,59 @@
+CREATE TABLE `auth_challenges` (
+	`id` text PRIMARY KEY NOT NULL,
+	`challenge` text NOT NULL,
+	`kind` text NOT NULL,
+	`expires_at` integer NOT NULL,
+	`created_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `credentials` (
+	`id` text PRIMARY KEY NOT NULL,
+	`password_hash` text NOT NULL,
+	`generation` integer DEFAULT 1 NOT NULL,
+	`failed_attempts` integer DEFAULT 0 NOT NULL,
+	`locked_until` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `device_tokens` (
+	`id` text PRIMARY KEY NOT NULL,
+	`token_hash` text NOT NULL,
+	`label` text NOT NULL,
+	`scope` text DEFAULT 'capture' NOT NULL,
+	`last_used_at` integer,
+	`expires_at` integer,
+	`revoked_at` integer,
+	`created_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_device_tokens_hash` ON `device_tokens` (`token_hash`);--> statement-breakpoint
+CREATE TABLE `passkeys` (
+	`id` text PRIMARY KEY NOT NULL,
+	`credential_id` text NOT NULL,
+	`public_key` text NOT NULL,
+	`counter` integer DEFAULT 0 NOT NULL,
+	`transports` text,
+	`label` text NOT NULL,
+	`last_used_at` integer,
+	`created_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_passkeys_credential` ON `passkeys` (`credential_id`);--> statement-breakpoint
+CREATE TABLE `sessions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`token_hash` text NOT NULL,
+	`generation` integer DEFAULT 1 NOT NULL,
+	`expires_at` integer NOT NULL,
+	`last_seen_at` integer NOT NULL,
+	`user_agent` text,
+	`ip` text,
+	`revoked_at` integer,
+	`created_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_sessions_token` ON `sessions` (`token_hash`);--> statement-breakpoint
+CREATE INDEX `idx_sessions_expiry` ON `sessions` (`expires_at`);--> statement-breakpoint
 CREATE TABLE `categories` (
 	`id` text PRIMARY KEY NOT NULL,
 	`scope` text NOT NULL,

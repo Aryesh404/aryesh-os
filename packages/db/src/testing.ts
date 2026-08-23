@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { migrate } from 'drizzle-orm/libsql/migrator';
 import { configureConnection, createDb } from './client.js';
 import { createRepositories, type Repositories } from './repositories/index.js';
+import { ensureSearchIndex } from './search.js';
 import type { Db } from './client.js';
 
 const migrationsFolder = resolve(
@@ -27,6 +28,7 @@ export async function createTestDb(startAt = 1_700_000_000_000): Promise<TestDb>
   const { db, client } = createDb({ url: ':memory:' });
   await configureConnection(client, ':memory:');
   await migrate(db, { migrationsFolder });
+  await ensureSearchIndex(db);
 
   let current = startAt;
   const clock = () => current;

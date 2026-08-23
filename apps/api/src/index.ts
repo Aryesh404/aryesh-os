@@ -1,12 +1,13 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import {
   fastifyTRPCPlugin,
   type FastifyTRPCPluginOptions,
 } from '@trpc/server/adapters/fastify';
-import { getDb, closeDb } from '@aryesh/db';
+import { closeDb, ensureSearchIndex, getDb } from '@aryesh/db';
+import { createCore, createScheduler } from '@aryesh/core';
+import { createAuthService } from './auth/service.js';
 import { loadEnv } from './env.js';
 import { appRouter, type AppRouter } from './routers/index.js';
 import { createContextFactory } from './trpc.js';
@@ -24,20 +25,30 @@ const logger =
       }
     : { level: env.NODE_ENV === 'production' ? 'info' : 'silent' };
 
-const app = Fastify({ logger, maxParamLength: 5000 });
+// tRPC batches queries into the URL, so the default 100-char limit is too
+// small. `maxParamLength` at the top level is deprecated in Fastify 5.
+const app = Fastify({ logger, routerOptions: { maxParamLength: 5000 } });
 
-// apps/api/src -> repo root. Relative DATABASE_URL values resolve from here,
-// so the API opens the same file whether launched by turbo or directly.
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const db = getDb({ url: env.DATABASE_URL, root: repoRoot });
+const db = getDb({ url: env.DATABASE_URL });
+await ensureSearchIndex(db);
+
+const core = createCore({ db });
+const auth = createAuthService({ db, clock: core.clock });
 
 await app.register(cors, { origin: env.WEB_ORIGIN, credentials: true });
+await app.register(cookie);
 
 await app.register(fastifyTRPCPlugin, {
   prefix: '/trpc',
   trpcOptions: {
     router: appRouter,
-    createContext: createContextFactory(db),
+    createContext: createContextFactory({
+      db,
+      core,
+      auth,
+      // Loopback in development; a tunnel terminates TLS in front of this.
+      secureCookies: env.NODE_ENV === 'production',
+    }),
     onError({ path, error }) {
       app.log.error({ path, code: error.code, err: error.cause }, 'trpc error');
     },
@@ -46,8 +57,17 @@ await app.register(fastifyTRPCPlugin, {
 
 app.get('/health', () => ({ ok: true }));
 
+/**
+ * Snapshots and collectors run on a timer inside the API process. There is no
+ * separate worker: one user, one machine, and a missed night is a permanent
+ * hole in the trajectory, so the scheduler catches up rather than skipping.
+ */
+const scheduler = createScheduler(core);
+scheduler.start();
+
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, 'shutting down');
+  scheduler.stop();
   await app.close();
   await closeDb();
   process.exit(0);

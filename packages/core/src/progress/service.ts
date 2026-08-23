@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '@aryesh/db';
 import { schema } from '@aryesh/db';
 import {
@@ -85,6 +85,15 @@ export function createProgressService({ db, clock, events }: ProgressServiceDeps
       return affected;
     },
 
+    /**
+     * The resolved contributor facts for a goal, as the engine sees them.
+     * Exposed so overlap detection runs against what actually feeds the
+     * number rather than a reconstruction of it.
+     */
+    async inputsFor(goalId: string, options?: Partial<BuildOptions>): Promise<GoalInput> {
+      return buildGoalInput(db, goalId, { ...options, now: options?.now ?? clock() });
+    },
+
     async allActiveGoalIds(): Promise<string[]> {
       const rows = await db
         .select({ id: goals.id })
@@ -156,6 +165,24 @@ async function resolveSubGoals(
 async function ancestorGoals(db: Db, seed: { kind: string; id: string }): Promise<string[]> {
   const found = new Set<string>();
   if (seed.kind === 'goal') found.add(seed.id);
+
+  // `mode: 'metric'` is a shorthand that names its metric in the progress model
+  // rather than through a contributes_to edge, so the edge walk below cannot
+  // see it. Without this, a reading would update the metric and quietly leave
+  // the goal's cached number stale.
+  if (seed.kind === 'metric') {
+    const direct = await db
+      .select({ id: goals.id })
+      .from(goals)
+      .where(
+        and(
+          isNull(goals.deletedAt),
+          sql`json_extract(${goals.progressModel}, '$.metricId') = ${seed.id}`,
+        ),
+      );
+    for (const row of direct) found.add(row.id);
+  }
+
   let frontier = [seed.id];
 
   for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {

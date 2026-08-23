@@ -122,6 +122,26 @@ export function createSnapshotter({ db, clock, progress, events }: SnapshotterDe
     },
 
     /**
+     * The series behind a trajectory chart: one indexed range scan, ordered
+     * oldest first so the chart can draw it directly.
+     */
+    async history(
+      goalId: string,
+      options: { from?: number; to?: number; limit?: number } = {},
+    ) {
+      const clauses = [eq(goalSnapshots.goalId, goalId)];
+      if (options.from !== undefined) clauses.push(gte(goalSnapshots.date, options.from));
+      if (options.to !== undefined) clauses.push(lt(goalSnapshots.date, options.to));
+
+      return db
+        .select()
+        .from(goalSnapshots)
+        .where(and(...clauses))
+        .orderBy(goalSnapshots.date)
+        .limit(options.limit ?? 400);
+    },
+
+    /**
      * Period rollups per metric, so a two-year chart is a range scan rather
      * than a reduction over half a million readings.
      */
