@@ -23,7 +23,7 @@ const { credentials, sessions, deviceTokens } = schema;
  * A test asserts the produced hash actually carries the `$argon2id$` prefix, so
  * this is verified rather than assumed.
  */
-const ARGON: Parameters<typeof hash>[1] = {
+export const ARGON: Parameters<typeof hash>[1] = {
   memoryCost: 19_456,
   timeCost: 2,
   parallelism: 1,
@@ -32,7 +32,7 @@ const ARGON: Parameters<typeof hash>[1] = {
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 8;
 const LOCKOUT_MS = 15 * 60 * 1000;
-const CREDENTIAL_ID = 'primary';
+export const CREDENTIAL_ID = 'primary';
 
 export type DeviceScope = 'read' | 'capture' | 'full';
 

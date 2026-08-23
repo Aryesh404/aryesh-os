@@ -37,7 +37,8 @@ npm run dev
 - API: http://localhost:4317
 
 ```bash
-npm run ci    # lint + typecheck + test + build
+npm run ci          # lint + typecheck + test + build
+npm run auth:reset  # forgot the password — local only, prompts for a new one
 ```
 
 ## Design commitments
