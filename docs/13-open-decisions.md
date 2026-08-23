@@ -7,9 +7,11 @@
 | **D1** | Storage | **libSQL — gate PASSED at M2 with real data** | Benchmarked at 500k readings / 2 000 goals / 10k edges (5–10× realistic scale): graph projection 31 ms, 2y trajectory series 14 ms, goal list 4 ms, contribution lookup 5 ms — all inside the docs/01 §7 budgets with large margins. 125 MB on disk. No reason to revisit before Phase 4 |
 | **D2** | App shell | **Web now, Tauri v2 in Phase 2** | `ShellAdapter` interface from M1 so the wrapper is additive. Unlocks the global hotkey, which is what makes "command center" literal |
 | **D4** | Claude billing | **Deferred; cost model worked in §D4** | Claude is now Phase 5, so this blocks nothing for months |
-| **D6** | Charts | **Hand-rolled SVG, not visx** | The trajectory chart needs two linear scales, a path builder, and tick selection. Revisit if a later chart genuinely needs axes, brushing, or stacking |
+| **D12** | Charts | **Hand-rolled SVG, not visx** | The trajectory chart needs two linear scales, a path builder, and tick selection. Revisit if a later chart genuinely needs axes, brushing, or stacking. *(Recorded as D6 by mistake; D6 was already the attention signal.)* |
 | **D-scope** | Product scope | **Progress intelligence; customization scoped per `08`** | ~40% less machinery than v1 |
 | **D6** | Attention signal | **Proxies now; optional time logging in Phase 4** | Phase 1 infers attention from tasks, project activity, readings, executions — labelled honestly as a proxy. `timeLogged` is a weighted input the analysis blends in if it later exists |
+| **D13** | Web framework | **React 19 + Vite stays; Next.js deferred** | Audit found exactly one Vite-specific line in the whole codebase, so migration is cheap but buys nothing: no SEO, no cold-load path, no images, every route behind a session cookie. Next would also conflict with M11's Tauri wrapper, which wants a static bundle. Full reasoning in `docs/16` |
+| **D14** | Deployment topology | **One origin; `/api/*` reverse-proxied to Fastify** | Keeps the session cookie first-party, so no `SameSite=None` and no third-party cookie dependency. Tauri and CLI use device tokens instead, which the API already supports. `docs/16 §3` |
 | **D7** | Goal structure | **Themes, not calendar horizons** | The `horizon` ladder is gone. New `Theme` object (`02` §1); goal dates are optional; **undated items get a momentum vocabulary instead of a pace vocabulary** (`04` §3) |
 
 ---
