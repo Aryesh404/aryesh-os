@@ -5,6 +5,7 @@ import { createProgressService, type ProgressService } from './progress/service.
 import { createCollectorRunner, type Collector, type CollectorRunner } from './collectors/registry.js';
 import { BUILTIN_COLLECTORS } from './collectors/builtin.js';
 import { createSnapshotter, type Snapshotter } from './snapshotter/index.js';
+import { createTrajectoryService, type TrajectoryService } from './trajectory/service.js';
 import { createJobQueue, type JobQueue } from './jobs/queue.js';
 
 export interface CoreOptions {
@@ -23,6 +24,7 @@ export interface Core {
   progress: ProgressService;
   collectors: CollectorRunner;
   snapshots: Snapshotter;
+  trajectory: TrajectoryService;
   jobs: JobQueue;
 }
 
@@ -52,6 +54,7 @@ export function createCore(options: CoreOptions): Core {
   );
 
   const snapshots = createSnapshotter({ db, clock, progress, events });
+  const trajectory = createTrajectoryService({ db, clock });
   const jobs = createJobQueue({ db, clock });
 
   jobs.register(JOB_KINDS.snapshot, async (payload) => {
@@ -87,5 +90,5 @@ export function createCore(options: CoreOptions): Core {
     await progress.recomputeAffectedBy({ kind: 'project', id: projectId });
   });
 
-  return { db, clock, repos, events, progress, collectors, snapshots, jobs };
+  return { db, clock, repos, events, progress, collectors, snapshots, trajectory, jobs };
 }

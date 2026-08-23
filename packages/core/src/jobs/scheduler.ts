@@ -12,8 +12,6 @@ import { JOB_KINDS } from '../create-core.js';
 export interface SchedulerOptions {
   /** How often to look for due work. */
   tickMs?: number;
-  /** Catch up on nights the app was closed, up to this many days back. */
-  catchUpDays?: number;
 }
 
 export interface Scheduler {
@@ -25,23 +23,28 @@ export interface Scheduler {
 
 export function createScheduler(core: Core, options: SchedulerOptions = {}): Scheduler {
   const tickMs = options.tickMs ?? 60_000;
-  const catchUpDays = options.catchUpDays ?? 7;
   let timer: ReturnType<typeof setInterval> | undefined;
 
   const tick = async (): Promise<void> => {
     const now = core.clock();
     const today = startOfUtcDay(now);
 
-    // One snapshot per day, deduped by date. Closing the laptop for a week
-    // leaves seven distinct days to fill, not seven copies of tonight's job.
-    for (let back = 0; back < catchUpDays; back++) {
-      const date = today - back * 86_400_000;
-      await core.jobs.enqueue(
-        JOB_KINDS.snapshot,
-        { at: date + 23 * 3_600_000 },
-        { dedupeKey: `snapshot:${date}` },
-      );
-    }
+    /**
+     * Today's snapshot only, deduped by date. Days the app was closed stay
+     * empty on purpose.
+     *
+     * Back-filling them would stamp *today's* computed progress onto past
+     * dates, because progress is derived from the readings that exist now — so
+     * a user who backfills six months of revenue on Monday would get a week of
+     * invented history showing Monday's figure. A gap in the series is honest;
+     * fabricated points are not, and they are indistinguishable from real ones
+     * once written (docs/03 §7).
+     */
+    await core.jobs.enqueue(
+      JOB_KINDS.snapshot,
+      { at: now },
+      { dedupeKey: `snapshot:${today}` },
+    );
 
     await core.jobs.enqueue(
       JOB_KINDS.collect,

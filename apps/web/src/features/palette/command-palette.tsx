@@ -107,6 +107,7 @@ export function CommandPalette({
     }
 
     const destinations: Array<[string, Route]> = [
+      ['Today', { name: 'home' }],
       ['Goals', { name: 'goals' }],
       ['Metrics', { name: 'metrics' }],
       ['Work', { name: 'work' }],

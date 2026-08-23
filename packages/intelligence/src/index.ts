@@ -26,4 +26,5 @@ export type { ProgressOutcome, Degradation, LevelIndicator } from './progress/ag
 export { findOverlaps } from './progress/overlap.js';
 export type { Overlap } from './progress/overlap.js';
 
+export * from './trajectory/index.js';
 export * from './expressions/index.js';

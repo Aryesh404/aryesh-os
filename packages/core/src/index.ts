@@ -11,6 +11,9 @@ export { createCollectorRunner } from './collectors/registry.js';
 export type { Collector, CollectorRunner, CollectorRunResult } from './collectors/registry.js';
 export * from './collectors/builtin.js';
 
+export { createTrajectoryService } from './trajectory/service.js';
+export type { TrajectoryService } from './trajectory/service.js';
+
 export { createSnapshotter } from './snapshotter/index.js';
 export type { Snapshotter, SnapshotResult } from './snapshotter/index.js';
 

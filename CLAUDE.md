@@ -208,12 +208,28 @@ work — the import is the problem.
 - Metric values are plain numbers; only `transactions.amountMinor` and
   `accounts.balanceMinor` are minor units. `currencyAmount()` vs `money()`.
 
+## Trajectory notes (M7)
+
+- `computeTrajectory(input)` is pure and takes the snapshot series. The honesty
+  gates live there, not in the UI: fewer than 5 snapshots, a dead velocity, or a
+  passed target date each return `projection.available: false` **with a reason**,
+  and the reason is what gets rendered.
+- `paceRatio` is `null` for anything undated. That null is meaningful — branch
+  on it rather than defaulting it to a number.
+- **Never backfill snapshots.** Progress is computed from the readings that
+  exist now, so writing one for a past date invents history. The scheduler
+  snapshots today only; missed days stay empty.
+- For a momentum goal, `stalled` means the activity stopped — not that the score
+  is flat. A steady shipper has a constant momentum score.
+- The trajectory chart takes `scale: 'momentum'` to label the axis in multiples.
+  A momentum series must never be drawn as a percentage.
+
 ## Current state
 
-Phase 1 · **M1–M6 complete.** 220 tests green; the app runs and the loop closes
-end to end through the UI. Next: **M7 — trajectory & home**
-(`docs/12-phase-plan.md`): velocity, projection with honesty gates, the
-trajectory chart, and the home dashboard.
+Phase 1 · **M1–M7 complete.** 239 tests green. The loop is closed and visible:
+capture → measure → trajectory → home. Next: **M8 — hardening**
+(`docs/12-phase-plan.md`): performance budgets asserted, empty/loading/stale
+states, error handling, structured logging, backup and export.
 
 Passkeys are still unbuilt — see `docs/13` D11 for the recommendation.
 

@@ -183,7 +183,7 @@ describe('the jobs the core registers for itself', () => {
 });
 
 describe('scheduler', () => {
-  it('fills every missed day exactly once, not once per tick', async () => {
+  it('snapshots today once, however many times it ticks', async () => {
     const { createScheduler } = await import('./scheduler.js');
     const area = await c.repos.areas.create(
       { name: 'Business', color: '#38bdf8', sortOrder: 0 },
@@ -191,14 +191,39 @@ describe('scheduler', () => {
     );
     await c.repos.goals.create({ areaId: area.id, name: 'A goal' }, TEST_ACTOR);
 
-    const scheduler = createScheduler(c, { catchUpDays: 3 });
+    const scheduler = createScheduler(c);
 
     await scheduler.tick();
     await scheduler.tick();
+    await scheduler.tick();
+
+    expect(await c.db.select().from(goalSnapshots)).toHaveLength(1);
+  });
+
+  /**
+   * Progress is computed from the readings that exist *now*, so back-filling a
+   * missed day would stamp today's figure onto a date it was never true. A gap
+   * is honest; an invented point is indistinguishable from a real one once
+   * written (docs/03 §7).
+   */
+  it('leaves days the app was closed empty rather than inventing them', async () => {
+    const { createScheduler } = await import('./scheduler.js');
+    const area = await c.repos.areas.create(
+      { name: 'Business', color: '#38bdf8', sortOrder: 0 },
+      TEST_ACTOR,
+    );
+    await c.repos.goals.create({ areaId: area.id, name: 'A goal' }, TEST_ACTOR);
+
+    const scheduler = createScheduler(c);
+    await scheduler.tick();
+
+    // A week later, after the app was closed the whole time.
+    c.setNow(T0 + 7 * DAY);
     await scheduler.tick();
 
     const snapshots = await c.db.select().from(goalSnapshots);
-    // Three distinct days, however many times the scheduler ran.
-    expect(snapshots).toHaveLength(3);
+    expect(snapshots).toHaveLength(2);
+    const dates = snapshots.map((s) => s.date).sort((a, b) => a - b);
+    expect((dates[1]! - dates[0]!) / DAY).toBe(7);
   });
 });

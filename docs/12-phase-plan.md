@@ -212,7 +212,7 @@ currency metric through `money()` under-reported it 100×.
 **Passkeys deferred again — see docs/13 D11.** Password auth is complete; this is
 a considered scheduling call, not a slip that keeps rolling.
 
-### M7 — Trajectory & home (5d) ★
+### M7 — Trajectory & home (5d) ★ — COMPLETE
 Trajectory engine (velocity, projection, bands, honesty gates, status), the
 trajectory chart (`05` §5.1), progress rings, contribution breakdown, and the
 home dashboard v1.
@@ -221,6 +221,46 @@ home dashboard v1.
 a dated goal; renders the **momentum vocabulary** for an undated theme without
 inventing a deadline; and **correctly refuses to project** with fewer than 5
 snapshots, showing the explanation instead.
+
+**All three verified in the running app**, against a seeded database carrying 61
+days of real snapshots for two goals and 3 for a third:
+
+| Goal | Vocabulary | Status | Projection |
+|---|---|---|---|
+| ₹5L MRR by March 2027 | dated | ahead, pace 1.73× | linear, 25-point band |
+| Become a stronger engineer | momentum | slowing, `paceRatio: null` | refused — nothing is moving |
+| Ship the client portal | dated | at risk | **refused — 5 days of data needed, 3 so far** |
+
+The refusal is rendered where the projection would have been, so a young goal
+says what it does not know rather than showing an empty chart.
+
+**Two real bugs found by running it.**
+
+*The scheduler was fabricating history.* Catch-up enqueued a snapshot for each
+of the last seven days and stamped **today's** computed progress onto each one —
+progress is derived from the readings that exist now, so backfilling six months
+of revenue on Monday would have written a week of invented history showing
+Monday's figure. Missed days are now simply left empty. A gap is honest; an
+invented point is indistinguishable from a real one once written (docs/03 §7).
+The M4 test that asserted the old behaviour encoded the wrong rule and has been
+replaced.
+
+*`stalled` meant the wrong thing for momentum goals.* It was computed from
+flatness of the series, but a goal shipping steadily has a **constant** momentum
+score — so the measure was calling the exact behaviour it exists to reward
+"stalled". For momentum it now means the activity itself stopped.
+
+Also fixed while looking at real output: velocity required full window coverage,
+so a young goal had no velocity at any window and a 90-day decelerating goal had
+no baseline and read as "advancing"; the momentum axis was labelled in percent,
+which is precisely the denominator momentum mode exists to avoid; and the
+progress-model editor claimed "nothing contributes" for a `mode: 'metric'` goal
+while showing its number alongside.
+
+Deviation from `13` D6: the chart is hand-rolled SVG rather than visx. It needs
+two linear scales, a path builder, and tick selection; a chart library's value
+is in the parts this chart does not use, and it would fight the token system for
+colour.
 
 ### M8 — Hardening (3d)
 Performance budgets asserted, empty/loading/stale states, error handling,

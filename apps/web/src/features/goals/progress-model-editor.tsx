@@ -26,6 +26,7 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
   const [addingKind, setAddingKind] = useState<ContributorKind | ''>('');
   const [error, setError] = useState<string | null>(null);
 
+  const goal = useApi(['goals', goalId], () => trpc.goals.byId.query({ id: goalId }));
   const edges = useApi(['goals', goalId, 'contributors'], () =>
     trpc.relations.contributorsOf.query({ goalId }),
   );
@@ -83,6 +84,12 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
     return byKind;
   }, [metrics.data, projects.data, habits.data, milestones.data, goals.data, edges.data, goalId]);
 
+  // A `mode: 'metric'` goal names its metric in the progress model rather than
+  // through an edge, so the edge list is legitimately empty. Saying "nothing
+  // contributes" there would contradict the number shown right beside it.
+  const model = goal.data?.progressModel;
+  const singleMetricId = model?.mode === 'metric' ? model.metricId : null;
+
   const rows = edges.data ?? [];
   const totalWeight = rows.reduce((sum, e) => sum + (e.weight ?? 1), 0) || 1;
 
@@ -102,7 +109,19 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
 
   return (
     <Card title="Progress model">
-      {rows.length === 0 ? (
+      {singleMetricId !== null ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-fg-subtle text-[11px]">Metric</span>
+            <span className="flex-1">{labelFor('metric', singleMetricId)}</span>
+            <span className="mono text-[12px] text-fg-muted">100%</span>
+          </div>
+          <Subtle>
+            This goal is measured by a single metric. Add another contributor to
+            turn it into a weighted model.
+          </Subtle>
+        </div>
+      ) : rows.length === 0 ? (
         <Empty
           title="Nothing contributes to this goal yet"
           hint="Only contributes_to edges move a goal's number. Everything else is context."

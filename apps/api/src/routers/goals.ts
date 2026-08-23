@@ -124,6 +124,25 @@ const goalsExtras = router({
       return findOverlaps(contributors);
     }),
 
+  /**
+   * docs/04 — velocity, pace, status, and a banded projection. The honesty
+   * gates live in the engine, so a caller cannot accidentally render a
+   * confident line through three data points.
+   */
+  trajectory: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        windowDays: z.number().int().min(7).max(1200).default(400),
+      }),
+    )
+    .query(({ ctx, input }) =>
+      ctx.core.trajectory.forGoal(input.id, {
+        now: ctx.now(),
+        windowDays: input.windowDays,
+      }),
+    ),
+
   /** The snapshot series behind a trajectory chart. One indexed range scan. */
   history: protectedProcedure
     .input(

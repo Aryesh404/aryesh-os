@@ -5,6 +5,7 @@ import { CommandPalette } from '../palette/command-palette.tsx';
 import type { Route } from '../../app.js';
 
 const NAV: Array<{ route: Route; label: string }> = [
+  { route: { name: 'home' }, label: 'Today' },
   { route: { name: 'goals' }, label: 'Goals' },
   { route: { name: 'metrics' }, label: 'Metrics' },
   { route: { name: 'work' }, label: 'Work' },

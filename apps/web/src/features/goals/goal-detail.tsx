@@ -5,6 +5,7 @@ import { trpc } from '../../lib/trpc.js';
 import { date } from '../../lib/format.js';
 import { ExplainPanel, type Outcome } from './explain-panel.tsx';
 import { ProgressModelEditor } from './progress-model-editor.tsx';
+import { TrajectoryPanel } from './trajectory-panel.tsx';
 import type { Route } from '../../app.js';
 
 export function GoalDetail({
@@ -67,6 +68,8 @@ export function GoalDetail({
           </ul>
         </div>
       )}
+
+      <TrajectoryPanel goalId={id} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ProgressModelEditor goalId={id} />

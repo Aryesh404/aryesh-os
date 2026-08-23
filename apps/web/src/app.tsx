@@ -6,6 +6,7 @@ import { trpc } from './lib/trpc.js';
 import { LoginScreen } from './features/auth/login.tsx';
 import { Shell } from './features/shell/shell.tsx';
 import { StructurePage } from './features/structure/structure-page.tsx';
+import { HomePage } from './features/home/home-page.tsx';
 import { GoalsPage } from './features/goals/goals-page.tsx';
 import { GoalDetail } from './features/goals/goal-detail.tsx';
 import { MetricsPage } from './features/metrics/metrics-page.tsx';
@@ -18,6 +19,7 @@ import { WorkPage } from './features/work/work-page.tsx';
  * when the graph and dashboards arrive in Phase 2 and routes carry real state.
  */
 export type Route =
+  | { name: 'home' }
   | { name: 'goals' }
   | { name: 'goal'; id: string }
   | { name: 'metrics' }
@@ -31,10 +33,11 @@ function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, '');
   const [head, id] = path.split('/');
   if (head === 'goals' && id) return { name: 'goal', id };
+  if (head === 'goals') return { name: 'goals' };
   if (head === 'metrics') return { name: 'metrics' };
   if (head === 'work') return { name: 'work' };
   if (head === 'structure') return { name: 'structure' };
-  return { name: 'goals' };
+  return { name: 'home' };
 }
 
 export function useRoute(): [Route, (route: Route) => void] {
@@ -91,6 +94,7 @@ export function App(): React.JSX.Element {
 
   return (
     <Shell route={route} navigate={navigate} onSignOut={signOut}>
+      {route.name === 'home' && <HomePage navigate={navigate} />}
       {route.name === 'goals' && <GoalsPage navigate={navigate} />}
       {route.name === 'goal' && <GoalDetail id={route.id} navigate={navigate} />}
       {route.name === 'metrics' && <MetricsPage />}

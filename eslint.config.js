@@ -1,6 +1,7 @@
 // @ts-check
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 /**
  * Package dependency rules from docs/11-repository-structure.md.
@@ -162,6 +163,17 @@ export default tseslint.config(
           message: 'packages/intelligence must be deterministic. No randomness.',
         },
       ],
+    },
+  },
+
+  // The hooks rules catch stale closures and conditional hooks, which are the
+  // two React bugs that typecheck cleanly and then misbehave at runtime.
+  {
+    files: ['apps/web/**/*.tsx', 'apps/web/**/*.ts'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 
