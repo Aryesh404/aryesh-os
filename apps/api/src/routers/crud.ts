@@ -1,5 +1,6 @@
 import { z, type ZodTypeAny } from 'zod';
 import type { Repositories } from '@aryesh/db';
+import type { Context } from '../trpc.js';
 import {
   actorOf,
   captureProcedure,
@@ -58,9 +59,19 @@ export interface CrudRow {
   updatedAt: number;
 }
 
+export interface CrudHooks<TRow> {
+  /**
+   * Runs after a create or update. Used to emit the domain event that keeps
+   * derived state true — the event bus is the seam, so nothing here calls the
+   * progress engine directly.
+   */
+  afterWrite?: (row: TRow, ctx: Context) => Promise<void>;
+}
+
 export function crudRouter<TRow extends CrudRow>(
   pick: (repos: Repositories) => RepoLike<TRow>,
   schemas: { create: ZodTypeAny; update: ZodTypeAny },
+  hooks: CrudHooks<TRow> = {},
 ) {
   const updateInput = z.object({
     id: z.string(),
@@ -94,20 +105,24 @@ export function crudRouter<TRow extends CrudRow>(
 
     create: captureProcedure
       .input(schemas.create)
-      .mutation(({ ctx, input }) =>
-        pick(ctx.core.repos).create(input as never, actorOf(ctx)),
-      ),
+      .mutation(async ({ ctx, input }) => {
+        const row = await pick(ctx.core.repos).create(input as never, actorOf(ctx));
+        await hooks.afterWrite?.(row, ctx);
+        return row;
+      }),
 
-    update: captureProcedure.input(updateInput).mutation(({ ctx, input }) =>
-      pick(ctx.core.repos).update(
+    update: captureProcedure.input(updateInput).mutation(async ({ ctx, input }) => {
+      const row = await pick(ctx.core.repos).update(
         input.id,
         input.patch as never,
         actorOf(ctx),
         input.expectedVersion === undefined
           ? {}
           : { expectedVersion: input.expectedVersion },
-      ),
-    ),
+      );
+      await hooks.afterWrite?.(row, ctx);
+      return row;
+    }),
 
     // Deletion is structural, so it needs full access even though creating
     // only needs capture.

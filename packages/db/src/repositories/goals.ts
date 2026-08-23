@@ -6,6 +6,7 @@ import {
   type Ctx,
   type CustomFieldsGuard,
   type ManagedField,
+  type Patch,
   type RepoDeps,
 } from './base.js';
 import { RelationCycleError } from './relations.js';
@@ -71,7 +72,7 @@ export function createGoalsRepository(deps: RepoDeps, guard: CustomFieldsGuard) 
 
     async update(
       id: string,
-      patch: Partial<Omit<GoalInsert, ManagedField>>,
+      patch: Patch<Omit<GoalInsert, ManagedField>>,
       ctx: Ctx,
       opts: { expectedVersion?: number; label?: string } = {},
     ): Promise<GoalRow> {

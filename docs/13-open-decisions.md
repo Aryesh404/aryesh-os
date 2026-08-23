@@ -105,6 +105,31 @@ without averaging them into a lie. Worth looking at on a real screen in M6.
 
 ---
 
+### D11 — When passkeys land — *needs your call*
+
+M5 deferred passkeys to M6, and M6 has not done them either. Rather than roll
+that forward a third time silently, here is the actual position.
+
+**What exists:** the `passkeys` and `auth_challenges` tables, and
+`@simplewebauthn/server` installed. Nothing is wired.
+
+**Why it keeps slipping:** WebAuthn is a browser ceremony plus server
+verification plus a credential-management surface. It is a real feature, not a
+finishing touch, and each milestone it was attached to had a different
+acceptance criterion that it did not serve.
+
+**My recommendation: move it to Phase 5, with mobile.** Password auth with
+Argon2id, hashed sessions, lockout, and generation-bumping is complete and
+secure for a local single-user app. Passkeys earn their keep when you are
+signing in from a phone over a tunnel — which is exactly Phase 5 (docs/13 D3).
+Doing it now means building the ceremony against a browser that is already
+trusted, then rebuilding the interesting half when the phone arrives.
+
+**If you would rather have it sooner**, the natural slot is the start of Phase 2,
+before the graph work begins. Say so and it goes there.
+
+---
+
 ## Honestly unresolved
 
 - **Progress-model ergonomics.** Weighted contributors are correct and

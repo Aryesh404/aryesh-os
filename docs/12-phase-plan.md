@@ -166,7 +166,7 @@ progress model rather than through a `contributes_to` edge, so the invalidation
 walk never reached it and its cached progress went stale silently. The walk now
 also matches goals by `json_extract(progress_model, '$.metricId')`.
 
-### M6 — Capture & structure UI (5d)
+### M6 — Capture & structure UI (5d) — COMPLETE
 Areas and **themes**; the goal builder including the **progress-model editor**
 (pick contributors, set weights, see the resulting number update live); metric
 creation with backfill; quick capture in the command palette; readings entry;
@@ -174,6 +174,43 @@ project and task basics.
 
 *Done when:* a goal with four mixed contributors can be built entirely in the UI
 and its progress explained via drill-down.
+
+**Verified by driving the running app**, not only by tests. "₹5L MRR by March
+2027" was built through the interface with four mixed contributors — metric,
+project, habit, milestone — and the drill-down rendered:
+
+```
+20%  method weighted-mean   confidence 0.78
+metric    monthly_revenue              25%  28%  140000 of 500000, baseline 0
+project   Retainer platform            25%  50%  1 of 2 effort closed
+habit     Weekly client outreach       25%   0%  0 of 13
+milestone First retainer client signed 25%   0%  0 of 1 achieved
+◆ Retainer platform: task completion is an activity proxy, not measured advancement
+```
+
+Dragging the metric weight to 7 renormalised to 70/10/10/10 and moved the goal
+to 25% — the figure always comes back from the engine, never from a second
+implementation in the UI. Quick capture (`monthly_revenue 152000`) then recorded
+a reading, and the event chain recomputed the goal to 26% with the detail line
+updated, closing Observe → Measure → Understand → Visualize through the UI.
+
+Three bugs the running app found that tests had not:
+- **`npm run dev` did not work at all.** Turbo runs the API with cwd `apps/api`,
+  so the relative `DATABASE_URL` resolved to `apps/api/data`. Every prior
+  verification had run tsx from the repo root. The API now derives the root from
+  its own file location.
+- **`projects.progress` was a cached column nothing wrote**, so every project
+  read "—". Task writes now emit `task.changed` and the core recomputes it,
+  mirroring goals.
+- **`mergeRouters` rejects duplicate procedure keys**, so overriding a generated
+  CRUD procedure crashed at startup while typechecking cleanly. `crudRouter`
+  grew an `afterWrite` hook instead.
+
+Also fixed: metric values are plain numbers, not minor units, so formatting a
+currency metric through `money()` under-reported it 100×.
+
+**Passkeys deferred again — see docs/13 D11.** Password auth is complete; this is
+a considered scheduling call, not a slip that keeps rolling.
 
 ### M7 — Trajectory & home (5d) ★
 Trajectory engine (velocity, projection, bands, honesty gates, status), the

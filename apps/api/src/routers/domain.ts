@@ -100,6 +100,10 @@ export const projectsRouter = crudRouter((repos) => repos.projects, {
   }),
 });
 
+/**
+ * Tasks emit `task.changed` so their project's cached progress stays true.
+ * The event is the seam — the router never calls the progress engine directly.
+ */
 export const tasksRouter = crudRouter((repos) => repos.tasks, {
   create: z.object({
     projectId: z.string().optional(),
@@ -124,6 +128,13 @@ export const tasksRouter = crudRouter((repos) => repos.tasks, {
     completedAt: timestamp.nullable().optional(),
     customFields,
   }),
+}, {
+  afterWrite: async (task, ctx) => {
+    await ctx.core.events.emit('task.changed', {
+      taskId: task.id,
+      projectId: task.projectId ?? undefined,
+    });
+  },
 });
 
 export const habitsRouter = crudRouter((repos) => repos.habits, {

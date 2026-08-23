@@ -190,12 +190,32 @@ work — the import is the problem.
 - `createTestApi()` from `apps/api/src/testing.ts` gives callers at any scope
   without a cookie round-trip.
 
+## Web notes (M6)
+
+- `apps/web` is a hash-routed SPA; there is no router library yet (five
+  destinations did not justify one). It moves to TanStack Router in Phase 2 when
+  routes carry real state.
+- Tailwind v4 reads the design tokens from `styles/tokens.css` via `@theme
+  inline`, so tokens stay the single source of truth (docs/05).
+- Numbers render through `components/metric.tsx` — tabular figures, and
+  animation *from the previous value*, never from zero.
+- The progress-model editor never recomputes locally. Weights write to the
+  relation and the number comes back from the engine; a second implementation
+  would drift from the first.
+- `crudRouter` takes an `afterWrite` hook for emitting domain events. Do not try
+  to override a generated procedure via `mergeRouters` — it throws
+  `Duplicate key` at startup.
+- Metric values are plain numbers; only `transactions.amountMinor` and
+  `accounts.balanceMinor` are minor units. `currencyAmount()` vs `money()`.
+
 ## Current state
 
-Phase 1 · **M1–M5 complete.** 220 tests green. Next: **M6 — capture &
-structure UI** (`docs/12-phase-plan.md`): areas and themes, the goal builder
-with its progress-model editor, metric creation with backfill, quick capture,
-and readings entry. Passkey login lands here too.
+Phase 1 · **M1–M6 complete.** 220 tests green; the app runs and the loop closes
+end to end through the UI. Next: **M7 — trajectory & home**
+(`docs/12-phase-plan.md`): velocity, projection with honesty gates, the
+trajectory chart, and the home dashboard.
+
+Passkeys are still unbuilt — see `docs/13` D11 for the recommendation.
 
 Snapshots are now being written (M4). The series they build is the only input
 trajectory has, and it cannot be reconstructed — so never "temporarily" disable

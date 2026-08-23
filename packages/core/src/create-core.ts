@@ -79,5 +79,13 @@ export function createCore(options: CoreOptions): Core {
     await progress.recomputeAffectedBy({ kind: 'metric', id: metricId });
   });
 
+  // Closing a task moves its project, which may move goals above it — but only
+  // through an explicit weighted contribution (docs/03 §4.4).
+  events.on('task.changed', async ({ projectId }) => {
+    if (projectId === undefined) return;
+    await progress.recomputeProject(projectId);
+    await progress.recomputeAffectedBy({ kind: 'project', id: projectId });
+  });
+
   return { db, clock, repos, events, progress, collectors, snapshots, jobs };
 }

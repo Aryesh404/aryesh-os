@@ -10,7 +10,7 @@ import {
 import { buildGoalInput, type BuildOptions } from './build-input.js';
 import type { EventBus } from '../events/bus.js';
 
-const { goals, relations } = schema;
+const { goals, projects, relations, tasks } = schema;
 
 export interface ProgressServiceDeps {
   db: Db;
@@ -83,6 +83,51 @@ export function createProgressService({ db, clock, events }: ProgressServiceDeps
         await service.computeAndCache(goalId, { ...options, now });
       }
       return affected;
+    },
+
+    /**
+     * Projects cache their progress the same way goals do, so a list view is a
+     * read rather than a fan-out of task queries. The basis is whatever the
+     * project declares; `task_based` stays an activity proxy either way
+     * (docs/03 §4.4).
+     */
+    async recomputeProject(projectId: string): Promise<number | null> {
+      const project = (
+        await db.select().from(projects).where(eq(projects.id, projectId)).limit(1)
+      )[0];
+      if (!project) return null;
+
+      const basis = project.progressBasis;
+      let value: number | null = null;
+      let confidence: number | null = null;
+
+      if (basis.mode === 'manual') {
+        value = basis.value;
+        confidence = 0.7;
+      } else if (basis.mode === 'task_based') {
+        const rows = await db
+          .select({ status: tasks.status, estimate: tasks.estimate })
+          .from(tasks)
+          .where(and(eq(tasks.projectId, projectId), isNull(tasks.deletedAt)));
+
+        const effort = (r: { estimate: number | null }): number => r.estimate ?? 1;
+        const total = rows.reduce((sum, r) => sum + effort(r), 0);
+        if (total > 0) {
+          const done = rows
+            .filter((r) => r.status === 'done')
+            .reduce((sum, r) => sum + effort(r), 0);
+          value = done / total;
+          // Capped, because counting closed tasks measures motion, not distance.
+          confidence = 0.6;
+        }
+      }
+
+      await db
+        .update(projects)
+        .set({ progress: value, progressConfidence: confidence })
+        .where(eq(projects.id, projectId));
+
+      return value;
     },
 
     /**

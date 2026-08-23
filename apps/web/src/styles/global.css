@@ -1,36 +1,106 @@
+@import 'tailwindcss';
 @import './tokens.css';
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/**
+ * The design tokens in tokens.css are the source of truth (docs/05). Tailwind
+ * is given the same values so utilities and hand-written CSS cannot drift.
+ */
+@theme inline {
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-raised: var(--bg-raised);
+  --color-inset: var(--bg-inset);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+
+  --color-fg: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-fg-subtle: var(--text-tertiary);
+
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+
+  --color-ahead: var(--st-ahead);
+  --color-on-track: var(--st-on-track);
+  --color-at-risk: var(--st-at-risk);
+  --color-behind: var(--st-behind);
+  --color-stalled: var(--st-stalled);
+  --color-unknown: var(--st-unknown);
+
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-mono);
+
+  --radius-control: var(--r-control);
+  --radius-card: var(--r-card);
+  --radius-panel: var(--r-panel);
+
+  --ease-ui: var(--ease-ui);
 }
 
-html,
-body,
-#root {
-  height: 100%;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--fs-14);
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every number is monospaced with tabular figures (docs/05 §2). Digits that
+     shift position while animating read as instability. */
+  .mono,
+  code,
+  kbd {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* Hairlines are the structural device, not shadows or gradients. */
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
-body {
-  margin: 0;
-  background: var(--bg-canvas);
-  color: var(--text-primary);
-  font-family: var(--font-ui);
-  font-size: var(--fs-14);
-  letter-spacing: -0.011em;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Every number is monospaced with tabular figures (docs/05 §2). */
-.mono,
-code,
-kbd {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+@layer components {
+  .field-input {
+    width: 100%;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--r-control);
+    padding: var(--s-2) var(--s-3);
+    color: var(--text-primary);
+    font-size: var(--fs-13);
+    transition: border-color var(--d-micro) var(--ease-ui);
+  }
+  .field-input:hover {
+    border-color: var(--border-strong);
+  }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
 }

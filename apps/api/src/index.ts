@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
@@ -29,7 +31,13 @@ const logger =
 // small. `maxParamLength` at the top level is deprecated in Fastify 5.
 const app = Fastify({ logger, routerOptions: { maxParamLength: 5000 } });
 
-const db = getDb({ url: env.DATABASE_URL });
+/**
+ * `npm run dev` starts this with cwd = apps/api, so a relative DATABASE_URL
+ * would resolve to apps/api/data rather than the repository's data directory.
+ * The root is derived from this file's own location instead of the process's.
+ */
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const db = getDb({ url: env.DATABASE_URL, root: repoRoot });
 await ensureSearchIndex(db);
 
 const core = createCore({ db });

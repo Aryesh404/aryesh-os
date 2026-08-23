@@ -82,6 +82,13 @@ const MANAGED_FIELDS = [
 
 export type ManagedField = (typeof MANAGED_FIELDS)[number];
 
+/**
+ * `Partial<T>` is not enough under `exactOptionalPropertyTypes`: a Zod-inferred
+ * optional is `k?: V | undefined`, which a plain `Partial` rejects. Patches
+ * come from parsed input, so they always have that shape.
+ */
+export type Patch<T> = { [K in keyof T]?: T[K] | undefined };
+
 const MANAGED: ReadonlySet<string> = new Set<string>(MANAGED_FIELDS);
 
 function diff(
@@ -204,7 +211,7 @@ export function createRepository<T extends RecordTable>(
 
     async update(
       id: string,
-      patch: Partial<Omit<Insert, ManagedField>>,
+      patch: Patch<Omit<Insert, ManagedField>>,
       ctx: Ctx,
       opts: { expectedVersion?: number; label?: string } = {},
     ): Promise<Row> {
