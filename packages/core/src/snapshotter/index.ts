@@ -144,6 +144,10 @@ export function createSnapshotter({ db, clock, progress, events }: SnapshotterDe
     /**
      * Period rollups per metric, so a two-year chart is a range scan rather
      * than a reduction over half a million readings.
+     *
+     * One query per metric, bucketed in memory. The obvious shape — a query per
+     * period — is 400 round trips per daily metric, which turned a five-second
+     * nightly job into twenty.
      */
     async rollupMetrics(now: number, windowDays = 400): Promise<number> {
       const metricRows = await db
@@ -156,56 +160,71 @@ export function createSnapshotter({ db, clock, progress, events }: SnapshotterDe
         .where(isNull(metrics.deletedAt));
 
       const from = startOfUtcDay(now) - windowDays * 86_400_000;
-      let count = 0;
+      const pending: Array<typeof metricSnapshots.$inferInsert> = [];
 
       for (const metric of metricRows) {
+        const rows = await db
+          .select({ at: readings.at, value: readings.value })
+          .from(readings)
+          .where(
+            and(
+              eq(readings.metricId, metric.id),
+              gte(readings.at, from),
+              lt(readings.at, now),
+              eq(readings.component, ''),
+            ),
+          )
+          .orderBy(readings.at);
+
+        if (rows.length === 0) continue;
+
+        // Walk periods and readings together; both are sorted, so this is one
+        // pass rather than a scan per period.
         const periods = periodsBetween(metric.cadence, from, now);
+        let cursor = 0;
 
         for (const period of periods) {
-          const rows = await db
-            .select({ value: readings.value, at: readings.at })
-            .from(readings)
-            .where(
-              and(
-                eq(readings.metricId, metric.id),
-                gte(readings.at, period.start),
-                lt(readings.at, period.end),
-                eq(readings.component, ''),
-              ),
-            )
-            .orderBy(readings.at);
+          const values: number[] = [];
+          while (cursor < rows.length && (rows[cursor] as { at: number }).at < period.start) {
+            cursor++;
+          }
+          let peek = cursor;
+          while (peek < rows.length && (rows[peek] as { at: number }).at < period.end) {
+            values.push((rows[peek] as { value: number }).value);
+            peek++;
+          }
+          if (values.length === 0) continue;
 
-          if (rows.length === 0) continue;
-
-          const values = rows.map((r) => r.value);
-          const value = aggregate(metric.aggregation, values);
-
-          await db
-            .insert(metricSnapshots)
-            .values({
-              metricId: metric.id,
-              period: metric.cadence,
-              periodStart: period.start,
-              value,
-              readingCount: rows.length,
-              createdAt: now,
-            })
-            .onConflictDoUpdate({
-              target: [
-                metricSnapshots.metricId,
-                metricSnapshots.period,
-                metricSnapshots.periodStart,
-              ],
-              set: {
-                value: sql`excluded.value`,
-                readingCount: sql`excluded.reading_count`,
-              },
-            });
-          count++;
+          pending.push({
+            metricId: metric.id,
+            period: metric.cadence,
+            periodStart: period.start,
+            value: aggregate(metric.aggregation, values),
+            readingCount: values.length,
+            createdAt: now,
+          });
         }
       }
 
-      return count;
+      // Batched: one statement per 200 rollups rather than one per rollup.
+      for (let i = 0; i < pending.length; i += 200) {
+        await db
+          .insert(metricSnapshots)
+          .values(pending.slice(i, i + 200))
+          .onConflictDoUpdate({
+            target: [
+              metricSnapshots.metricId,
+              metricSnapshots.period,
+              metricSnapshots.periodStart,
+            ],
+            set: {
+              value: sql`excluded.value`,
+              readingCount: sql`excluded.reading_count`,
+            },
+          });
+      }
+
+      return pending.length;
     },
   };
 

@@ -262,9 +262,46 @@ two linear scales, a path builder, and tick selection; a chart library's value
 is in the parts this chart does not use, and it would fight the token system for
 colour.
 
-### M8 — Hardening (3d)
+### M8 — Hardening (3d) — COMPLETE
 Performance budgets asserted, empty/loading/stale states, error handling,
 structured logging, backup and export.
+
+**264 tests green.** Phase 1 is done.
+
+**The budgets are now assertions**, with the measured figure printed in the
+failure message. Writing them found a real problem: `rollupMetrics` issued one
+query *per metric per period* — 120 000 round trips for 300 daily metrics over a
+400-day window — which made the nightly job take **19.9 s against a 5 s budget**.
+Rewritten to one query per metric with in-memory bucketing and batched upserts,
+it now runs in **~0.8 s**. The threshold is the documented 5 s rather than
+something loosened to fit.
+
+| Budget | Documented | Measured |
+|---|---|---|
+| Progress recompute, one goal | 20 ms | ~14 ms |
+| Nightly snapshot, 200 goals + 300 metrics | 5 s | ~0.8 s |
+| Two-year trajectory read | 100 ms | ~75 ms |
+| Command-palette keystroke | 30 ms | ~12 ms |
+| Keyset page over 20 000 rows | 100 ms | well inside |
+
+**Backup and export** (docs/27). Two mechanisms, deliberately different: a
+binary `VACUUM INTO` snapshot for recovery — hot, exact, taken nightly with
+hourly/daily/weekly retention — and a portable JSON export for ownership,
+readable and diffable, carrying a manifest with per-table checksums. Import
+validates checksums before writing anything, runs in one transaction, and takes
+a safety snapshot first, because it is the one operation whose wrongness is only
+discoverable afterwards. Secrets and machine-local bookkeeping are excluded from
+the export, so a leaked file does not leak the account.
+
+**States and logging.** Scoped error boundaries — one panel failing no longer
+blanks the page, and the message says the data is untouched. Stale surfaces
+render dimmed with the time they were last true. Every response carries an
+`x-request-id`. Domain refusals log at `info`, not `error`: "this cannot be
+measured yet" is an answer, and logging answers as faults trains the reader to
+ignore the log.
+
+One design error caught by running it: `validateImport` was a query, which puts
+an entire database export in a URL. It is a mutation now.
 
 ---
 

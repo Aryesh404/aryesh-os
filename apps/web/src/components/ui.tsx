@@ -136,6 +136,31 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cx('bg-raised rounded animate-pulse', className ?? 'h-4 w-24')} />;
 }
 
+/**
+ * docs/05 §7 — a stale surface renders dimmed with the time it was last true,
+ * rather than pretending to be current. Never treat old data as fresh.
+ */
+export function Stale({
+  since,
+  children,
+}: {
+  since: number | null;
+  children: ReactNode;
+}) {
+  if (since === null) return <>{children}</>;
+  const minutes = Math.floor((Date.now() - since) / 60_000);
+  if (minutes < 2) return <>{children}</>;
+
+  return (
+    <div className="relative">
+      <div className="opacity-70">{children}</div>
+      <span className="absolute top-0 right-0 text-[10px] text-fg-subtle">
+        as of {new Date(since).toLocaleTimeString()}
+      </span>
+    </div>
+  );
+}
+
 export function ErrorNote({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error);
   return (

@@ -6,6 +6,7 @@ import { date } from '../../lib/format.js';
 import { ExplainPanel, type Outcome } from './explain-panel.tsx';
 import { ProgressModelEditor } from './progress-model-editor.tsx';
 import { TrajectoryPanel } from './trajectory-panel.tsx';
+import { ErrorBoundary } from '../../components/error-boundary.tsx';
 import type { Route } from '../../app.js';
 
 export function GoalDetail({
@@ -69,7 +70,9 @@ export function GoalDetail({
         </div>
       )}
 
-      <TrajectoryPanel goalId={id} />
+      <ErrorBoundary label="The trajectory">
+        <TrajectoryPanel goalId={id} />
+      </ErrorBoundary>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ProgressModelEditor goalId={id} />

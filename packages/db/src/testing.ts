@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import type { Client } from '@libsql/client';
 import { migrate } from 'drizzle-orm/libsql/migrator';
 import { configureConnection, createDb } from './client.js';
 import { createRepositories, type Repositories } from './repositories/index.js';
@@ -13,6 +14,8 @@ const migrationsFolder = resolve(
 
 export interface TestDb {
   db: Db;
+  /** The raw client, for the few operations drizzle does not model. */
+  client: Client;
   repos: Repositories;
   /** Controllable clock — tests never depend on the wall clock. */
   setNow: (ms: number) => void;
@@ -35,6 +38,7 @@ export async function createTestDb(startAt = 1_700_000_000_000): Promise<TestDb>
 
   return {
     db,
+    client,
     repos: createRepositories({ db, clock }),
     setNow: (ms: number) => {
       current = ms;

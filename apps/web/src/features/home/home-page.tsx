@@ -1,4 +1,4 @@
-import { Card, Empty, ErrorNote, Skeleton, Subtle } from '../../components/ui.tsx';
+import { Card, Empty, ErrorNote, Skeleton, Stale, Subtle } from '../../components/ui.tsx';
 import { ProgressRing, StatusChip } from '../../components/metric.tsx';
 import { keys, useApi } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
@@ -83,6 +83,7 @@ type GoalRow = {
   measurementMode: string;
   targetDate: number | null;
   degradedReason: string | null;
+  progressComputedAt: number | null;
 };
 
 function GoalTile({
@@ -105,8 +106,10 @@ function GoalTile({
   return (
     <button
       onClick={onOpen}
-      className="text-left bg-surface border border-line rounded-card p-4 flex items-center gap-4 hover:border-line-strong transition-colors duration-[120ms]"
+      className="text-left bg-surface border border-line rounded-card p-4 hover:border-line-strong transition-colors duration-[120ms]"
     >
+      <Stale since={goal.progressComputedAt}>
+      <div className="flex items-center gap-4">
       <ProgressRing
         value={goal.measurementMode === 'momentum' ? null : goal.progress}
         confidence={goal.confidence ?? 0}
@@ -141,6 +144,8 @@ function GoalTile({
           </div>
         )}
       </div>
+      </div>
+      </Stale>
     </button>
   );
 }

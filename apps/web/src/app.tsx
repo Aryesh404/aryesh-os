@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from './components/ui.tsx';
+import { ErrorBoundary } from './components/error-boundary.tsx';
 import { keys, useApi } from './lib/query.js';
 import { trpc } from './lib/trpc.js';
 import { LoginScreen } from './features/auth/login.tsx';
@@ -94,12 +95,16 @@ export function App(): React.JSX.Element {
 
   return (
     <Shell route={route} navigate={navigate} onSignOut={signOut}>
-      {route.name === 'home' && <HomePage navigate={navigate} />}
-      {route.name === 'goals' && <GoalsPage navigate={navigate} />}
-      {route.name === 'goal' && <GoalDetail id={route.id} navigate={navigate} />}
-      {route.name === 'metrics' && <MetricsPage />}
-      {route.name === 'work' && <WorkPage />}
-      {route.name === 'structure' && <StructurePage />}
+      {/* Keyed on the route so a failure clears when the user navigates away
+          rather than sticking until reload. */}
+      <ErrorBoundary key={route.name} label="This page">
+        {route.name === 'home' && <HomePage navigate={navigate} />}
+        {route.name === 'goals' && <GoalsPage navigate={navigate} />}
+        {route.name === 'goal' && <GoalDetail id={route.id} navigate={navigate} />}
+        {route.name === 'metrics' && <MetricsPage />}
+        {route.name === 'work' && <WorkPage />}
+        {route.name === 'structure' && <StructurePage />}
+      </ErrorBoundary>
     </Shell>
   );
 }

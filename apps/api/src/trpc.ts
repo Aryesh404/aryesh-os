@@ -4,6 +4,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import type { TRPC_ERROR_CODE_KEY } from '@trpc/server/rpc';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { AppError, type ErrorCode } from '@aryesh/contracts';
+import type { Client } from '@libsql/client';
 import type { Db } from '@aryesh/db';
 import type { Core } from '@aryesh/core';
 import type { AuthService, DeviceScope, Principal } from './auth/service.js';
@@ -12,7 +13,11 @@ export const SESSION_COOKIE = 'aos_session';
 
 export interface Context {
   db: Db;
+  /** The raw client, for VACUUM INTO and batched restores. */
+  client: Client;
   core: Core;
+  /** Where binary snapshots live. Resolved from the repo root, not cwd. */
+  backupDir: string;
   auth: AuthService;
   /** Wall clock, injected so handlers stay testable (docs/11 conventions). */
   now: () => number;
@@ -24,8 +29,10 @@ export interface Context {
 
 export interface ContextDeps {
   db: Db;
+  client: Client;
   core: Core;
   auth: AuthService;
+  backupDir: string;
   secureCookies: boolean;
 }
 
@@ -35,7 +42,9 @@ export function createContextFactory(deps: ContextDeps) {
 
     return {
       db: deps.db,
+      client: deps.client,
       core: deps.core,
+      backupDir: deps.backupDir,
       auth: deps.auth,
       now: deps.core.clock,
       principal,

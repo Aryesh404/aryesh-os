@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Card, Empty, ErrorNote, Input, Select, Skeleton, Subtle } from '../../components/ui.tsx';
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
+import { DataCard } from './data-card.tsx';
 
 /**
  * Areas and themes — the user's own top-level structure (docs/02 §1). Themes are
@@ -26,6 +27,7 @@ export function StructurePage() {
         <Areas />
         <Themes />
       </div>
+      <DataCard />
     </div>
   );
 }

@@ -224,14 +224,33 @@ work — the import is the problem.
 - The trajectory chart takes `scale: 'momentum'` to label the axis in multiples.
   A momentum series must never be drawn as a percentage.
 
+## Hardening notes (M8)
+
+- Performance budgets live in `packages/core/src/performance.test.ts` and print
+  the measured figure on failure. If one starts failing, find the query storm;
+  do not raise the threshold.
+- Two backup mechanisms, and they are not interchangeable: `VACUUM INTO` for
+  recovery (exact, includes secrets, stays local), JSON export for ownership
+  (readable, checksummed, excludes credentials and sessions).
+- Import validates before writing, runs in one transaction, and snapshots first.
+- Refusals log at `info`. Only genuine faults log at `error`.
+- A tRPC **query** puts its input in the URL. Anything carrying a payload of
+  unbounded size must be a mutation even when it reads nothing.
+
 ## Current state
 
-Phase 1 · **M1–M7 complete.** 239 tests green. The loop is closed and visible:
-capture → measure → trajectory → home. Next: **M8 — hardening**
-(`docs/12-phase-plan.md`): performance budgets asserted, empty/loading/stale
-states, error handling, structured logging, backup and export.
+**Phase 1 complete — M1 through M8.** 264 tests green. The loop runs end to end:
+capture → measure → trajectory → home, with honest refusals throughout and the
+data exportable.
 
-Passkeys are still unbuilt — see `docs/13` D11 for the recommendation.
+Next is **Phase 2 — Visualization** (`docs/12-phase-plan.md`): the full visual
+system, the motion layer, the neural graph, the dashboard builder, and the Tauri
+wrapper.
+
+Two things still open before Phase 2 starts:
+- Passkeys remain unbuilt — `docs/13` D11 recommends Phase 5, with mobile.
+- `docs/13` D9 asks for your real goals. Phase 1 can now hold them, and using it
+  for a fortnight would say more about what Phase 2 should be than any plan.
 
 Snapshots are now being written (M4). The series they build is the only input
 trajectory has, and it cannot be reconstructed — so never "temporarily" disable

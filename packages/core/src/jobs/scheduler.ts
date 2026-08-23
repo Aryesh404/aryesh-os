@@ -52,6 +52,9 @@ export function createScheduler(core: Core, options: SchedulerOptions = {}): Sch
       { dedupeKey: `collect:${today}` },
     );
 
+    // Once a day, and never more: a backup is cheap but not free.
+    await core.jobs.enqueue(JOB_KINDS.backup, {}, { dedupeKey: `backup:${today}` });
+
     await core.jobs.drain();
   };
 

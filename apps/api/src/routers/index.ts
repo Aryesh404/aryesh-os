@@ -4,6 +4,7 @@ import { NotMeasurableError } from '@aryesh/contracts';
 import { normaliseMetric } from '@aryesh/intelligence';
 import { actorOf, captureProcedure, fullProcedure, protectedProcedure, publicProcedure, router } from '../trpc.js';
 import { authRouter } from './auth.js';
+import { dataRouter } from './data.js';
 import {
   accountsRouter,
   areasRouter,
@@ -153,6 +154,7 @@ export const appRouter = router({
   collectors: collectorsRouter,
   relations,
   snapshots,
+  data: dataRouter,
 
   search: router({
     query: protectedProcedure

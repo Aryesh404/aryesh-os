@@ -1,5 +1,6 @@
 import type { Db } from '@aryesh/db';
-import { createRepositories, type Repositories } from '@aryesh/db';
+import type { Client } from '@libsql/client';
+import { createRepositories, pruneBackups, snapshotDatabase, type Repositories } from '@aryesh/db';
 import { createEventBus, type EventBus } from './events/bus.js';
 import { createProgressService, type ProgressService } from './progress/service.js';
 import { createCollectorRunner, type Collector, type CollectorRunner } from './collectors/registry.js';
@@ -10,6 +11,10 @@ import { createJobQueue, type JobQueue } from './jobs/queue.js';
 
 export interface CoreOptions {
   db: Db;
+  /** Raw client, for VACUUM INTO. Backups are skipped without it. */
+  client?: Client;
+  /** Where binary snapshots are written. Backups are skipped without it. */
+  backupDir?: string;
   /** Injected everywhere, so nothing below the API reads the wall clock. */
   clock?: () => number;
   collectors?: Collector[];
@@ -33,6 +38,7 @@ export const JOB_KINDS = {
   snapshot: 'snapshot.daily',
   collect: 'collector.run',
   recompute: 'progress.recompute',
+  backup: 'backup.daily',
 } as const;
 
 export function createCore(options: CoreOptions): Core {
@@ -70,6 +76,18 @@ export function createCore(options: CoreOptions): Core {
     if (key === '') await collectors.runAll(from, to);
     else await collectors.run(key, from, to);
   });
+
+  // Nightly binary snapshot with tiered retention (docs/09 §7). Skipped when
+  // the core is built without a client — tests and the pure paths do not need
+  // to write files.
+  if (options.client && options.backupDir) {
+    const { client, backupDir } = options;
+    jobs.register(JOB_KINDS.backup, async () => {
+      const stamp = new Date(clock()).toISOString().replace(/[:.]/g, '-');
+      await snapshotDatabase(client, `${backupDir}/aryesh-${stamp}.db`);
+      pruneBackups(backupDir, clock());
+    });
+  }
 
   jobs.register(JOB_KINDS.recompute, async (payload) => {
     const goalId = String(payload['goalId'] ?? '');
