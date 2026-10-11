@@ -50,7 +50,11 @@ async function readNewPassword(): Promise<[string, string]> {
 
 const env = loadEnv();
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-const { db, client } = createDb({ url: env.DATABASE_URL, root: repoRoot });
+const { db, client } = createDb({
+  url: env.DATABASE_URL,
+  root: repoRoot,
+  authToken: env.DATABASE_AUTH_TOKEN,
+});
 await configureConnection(client, env.DATABASE_URL);
 
 // A declaration rather than an arrow: TypeScript only narrows on a `never`

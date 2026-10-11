@@ -6,12 +6,17 @@ const schema = z.object({
   API_HOST: z.string().default('127.0.0.1'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   DATABASE_URL: z.string().default('file:./data/aryesh.db'),
+  DATABASE_AUTH_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = schema.safeParse(source);
+  const merged = {
+    ...source,
+    ...(source['PORT'] ? { API_PORT: source['PORT'] } : {}),
+  };
+  const parsed = schema.safeParse(merged);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  ${i.path.join('.')}: ${i.message}`)

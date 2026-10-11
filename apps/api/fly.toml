@@ -1,0 +1,27 @@
+app = "aryesh-os-api"
+primary_region = "bom"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+  # Fly.io builds from the repo root so all workspace packages are in context
+  build_target = "."
+
+[env]
+  NODE_ENV = "production"
+  API_HOST = "0.0.0.0"
+  API_PORT = "4317"
+  DATABASE_URL = "file:/data/aryesh.db"
+
+[[mounts]]
+  source = "aryesh_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 4317
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"

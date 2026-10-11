@@ -1,0 +1,8 @@
+node_modules
+.turbo
+dist
+*.db
+data/
+coverage/
+.env
+.env.*

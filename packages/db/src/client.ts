@@ -14,8 +14,8 @@ export interface DbOptions {
    * for anything launched from a workspace directory — the API passes the repo
    * root so `npm run dev` and a direct `tsx` run open the same database.
    */
-  root?: string;
-  authToken?: string;
+  root?: string | undefined;
+  authToken?: string | undefined;
 }
 
 /**
@@ -61,7 +61,9 @@ export function getDb(options: DbOptions): Db {
  */
 export async function configureConnection(client: Client, url: string): Promise<void> {
   await client.execute('PRAGMA foreign_keys = ON');
-  if (!url.includes(':memory:')) {
+  const isRemote =
+    url.startsWith('libsql:') || url.startsWith('http:') || url.startsWith('https:');
+  if (!url.includes(':memory:') && !isRemote) {
     await client.execute('PRAGMA journal_mode = WAL');
     await client.execute('PRAGMA synchronous = NORMAL');
   }

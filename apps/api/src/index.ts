@@ -49,7 +49,11 @@ app.addHook('onSend', async (request, reply) => {
  * The root is derived from this file's own location instead of the process's.
  */
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const { db, client } = createDb({ url: env.DATABASE_URL, root: repoRoot });
+const { db, client } = createDb({
+  url: env.DATABASE_URL,
+  root: repoRoot,
+  authToken: env.DATABASE_AUTH_TOKEN,
+});
 await configureConnection(client, env.DATABASE_URL);
 const backupDir = resolve(repoRoot, 'data/backups');
 
