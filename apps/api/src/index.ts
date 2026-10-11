@@ -113,6 +113,7 @@ await app.register(fastifyTRPCPlugin, {
   } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
 });
 
+app.get('/', () => ({ name: 'Aryesh OS API', status: 'online', health: '/health' }));
 app.get('/health', () => ({ ok: true }));
 
 /**
