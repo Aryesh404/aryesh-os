@@ -22,25 +22,27 @@ export function TrajectoryPanel({ goalId }: { goalId: string }) {
       </Card>
     );
   }
-  if (trajectory.isError) {
+  if (trajectory.isError || history.isError) {
     return (
       <Card title="Trajectory">
-        <ErrorNote error={trajectory.error} />
+        <ErrorNote error={trajectory.error ?? history.error} />
       </Card>
     );
   }
 
   const t = trajectory.data;
-  const points = (history.data ?? [])
-    .filter((s) => s.progress !== null || s.momentum !== null)
-    .map((s) => ({ date: s.date, value: (s.progress ?? s.momentum) as number }));
+  const momentum = goal.data?.measurementMode === 'momentum';
+  const points = (history.data ?? []).flatMap((s) => {
+    const value = momentum ? s.momentum : s.progress;
+    return value === null ? [] : [{ date: s.date, value }];
+  });
 
   if (points.length === 0) {
     return (
       <Card title="Trajectory">
         <Empty
           title="No history yet"
-          hint="Snapshots are written nightly. The series they build is what a trajectory is made of, and it cannot be reconstructed after the fact."
+          hint="Your daily progress will appear here as history builds. Keep recording updates; earlier progress is never invented."
         />
       </Card>
     );
@@ -48,16 +50,17 @@ export function TrajectoryPanel({ goalId }: { goalId: string }) {
 
   const now = Date.now();
   const last = points[points.length - 1];
+  const missingDays = Math.max(0, Math.round((points.at(-1)!.date - points[0]!.date) / 86_400_000) + 1 - points.length);
   const band = t?.projection.available ? t.projection.band : undefined;
 
   return (
-    <Card title="Trajectory">
-      <div className="flex items-baseline gap-4 mb-3">
+    <Card title="Your progress over time">
+      <div className="flex flex-wrap items-baseline gap-3 mb-5">
         <StatusChip status={(t?.status ?? 'unknown') as Status} />
         <Subtle>
           {t?.vocabulary === 'dated'
-            ? 'judged against its target date'
-            : 'judged on momentum — nothing is late that was never due'}
+            ? 'Compared with your target date'
+            : 'Following your pace, without a deadline'}
         </Subtle>
       </div>
 
@@ -76,19 +79,21 @@ export function TrajectoryPanel({ goalId }: { goalId: string }) {
           : {})}
       />
 
+      {missingDays > 0 && <p className="row-meta !text-at-risk">{missingDays} {missingDays === 1 ? 'day has' : 'days have'} no comparable reading. The line connects the recorded snapshots.</p>}
+
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-4 text-[12px]">
         <Stat
           label="30-day pace"
           value={t?.velocity.d30 === null || t === undefined
             ? '—'
-            : `${(t.velocity.d30 * 100).toFixed(2)}%/day`}
+            : momentum ? `${t.velocity.d30.toFixed(3)}×/day` : `${(t.velocity.d30 * 100).toFixed(2)} pp/day`}
         />
         <Stat
           label="required"
           value={
             t?.requiredPace == null
               ? 'no deadline'
-              : `${(t.requiredPace * 100).toFixed(2)}%/day`
+              : momentum ? `${t.requiredPace.toFixed(3)}×/day` : `${(t.requiredPace * 100).toFixed(2)} pp/day`
           }
         />
         <Stat
@@ -98,7 +103,7 @@ export function TrajectoryPanel({ goalId }: { goalId: string }) {
         <Stat label="data points" value={String(t?.dataPoints ?? 0)} />
       </dl>
 
-      {t?.projection.available && t.projection.atTarget && (
+      {!momentum && t?.projection.available && t.projection.atTarget && (
         <p className="text-[12px] text-fg-muted mt-3 mb-0">
           {t.projection.atTarget.high - t.projection.atTarget.low < 0.005 ? (
             // Every scenario lands in the same place, so quoting a range
@@ -120,7 +125,7 @@ export function TrajectoryPanel({ goalId }: { goalId: string }) {
         </p>
       )}
 
-      {t?.projection.available && t.projection.completionDate && (
+      {!momentum && t?.projection.available && t.projection.completionDate && (
         <p className="text-[12px] text-fg-muted mt-1 mb-0">
           Reaches 100% around{' '}
           <span className="mono">{formatDate(t.projection.completionDate.mid)}</span>.

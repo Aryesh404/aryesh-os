@@ -1,5 +1,32 @@
 # 07 — Dashboards, Views & Command Palette
 
+## Current workspace (first review slice)
+
+The implemented home is Today. The dashboard-builder proposal in section 1 is
+deferred. Desktop has a labelled sidebar; below 1024px, Today / Work / Goals /
+Money / More form the bottom navigation. Existing hash routes remain valid.
+More contains Tracking and Life areas/settings. Search and Quick Add are global.
+
+Today starts with up to three explicitly selected tasks. Add, replace, complete,
+and reopen them directly. Selections are server-persisted by Asia/Kolkata calendar
+date, with revision conflicts surfaced rather than overwritten. Completed choices
+stay visible. Yesterday's unfinished choices are offered for reselection only.
+Due tasks and habits follow, then up to three goals ordered by importance.
+Habit entries are one per calendar day with undo; period targets use actual
+calendar boundaries. Missing-data notices open the relevant recording form.
+
+Goal detail opens on Overview: present progress, recorded history, linked work,
+milestones, and Update progress. Configuration is in Tracking & settings;
+derivation is behind How this is calculated. Completion uses percentages,
+momentum uses multiples of the expected rate, and unavailable history or
+forecasting remains explicit.
+
+Quick Add supports a title-only task, a named progress update, a habit check-in,
+and an account-selected transaction. Capture pickers page server results. The
+existing Work, goal creation/listing, Tracking, Money, Settings, and sign-in
+screens are retained for the next review-approved rollout. See
+[17 — Workspace review](17-workspace-review.md) for the concrete handoff.
+
 ## 1. Dashboards
 
 ```ts

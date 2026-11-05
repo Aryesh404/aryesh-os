@@ -117,7 +117,7 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
   };
 
   return (
-    <Card title="Progress model">
+    <Card title="What moves this goal forward">
       {singleMetricId !== null ? (
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export function ProgressModelEditor({ goalId }: { goalId: string }) {
       ) : rows.length === 0 ? (
         <Empty
           title="Nothing contributes to this goal yet"
-          hint="Only contributes_to edges move a goal's number. Everything else is context."
+          hint="Link a number, a project, or a habit to start measuring your progress."
         />
       ) : (
         <ul className="list-none p-0 m-0 space-y-2">

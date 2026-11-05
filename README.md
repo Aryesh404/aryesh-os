@@ -19,11 +19,16 @@ and long-term goals:
 
 ## Status
 
-**Phase 1 · M1 complete** — skeleton. The spine is wired end to end: a value
-enters the API, the pure intelligence core normalises it, and the result comes
-back with its full derivation.
+The measurement backend, domain storage, authentication, finance, search, and
+data-management workflows are implemented. The first UI redesign slice now adds
+a calmer dark workspace, responsive navigation, daily priorities and habit
+check-ins, Quick Add, and an overview-first goal detail.
 
-Next: M2 (domain & storage). See [docs/12-phase-plan.md](docs/12-phase-plan.md).
+**Approved design (2026-11-05):** the previewed workspace is integrated into the
+normal application, including the AS logo and live IST clock. It uses your
+configured database and existing authentication; no preview flag is required.
+The wider screen rollout and browser visual acceptance remain pending. See
+[the delivery guide](docs/17-workspace-review.md) for scope and verification.
 
 ## Quick start
 
@@ -35,6 +40,10 @@ npm run dev
 
 - Web: http://localhost:5173
 - API: http://localhost:4317
+
+For an isolated redesign preview, run `npm.cmd run review` and open
+http://localhost:5174. The banner switches between populated and empty examples.
+It uses fictional in-memory data; your personal database is never opened.
 
 ```bash
 npm run ci          # lint + typecheck + test + build
@@ -69,8 +78,8 @@ inputs, at what confidence.
 | Storage | libSQL (embedded SQLite) + Drizzle — the whole OS is one copyable file |
 | API | Fastify + tRPC v11 — the only door; web, CLI, mobile are peer clients |
 | Web | Vite + React 19; Tauri shell from Phase 2 |
-| Graph | graphology + Sigma.js (WebGL), layout in a worker |
-| Charts | visx |
+| Graph | Deferred; proposed graphology + Sigma.js |
+| Charts | Responsive SVG trajectory chart |
 
 `packages/intelligence` — the progress, trajectory, blocker, and ranking engine
 — is **pure**: no I/O, no network, not even a clock it doesn't receive as a

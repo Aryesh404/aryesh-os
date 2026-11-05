@@ -175,6 +175,12 @@ export const milestonesRouter = crudRouter(
       customFields,
     }),
   },
+  {
+    afterWrite: async (milestone, ctx) => {
+      await ctx.core.progress.recomputeAffectedBy({ kind: 'milestone', id: milestone.id });
+      await ctx.core.progress.computeAndCache(milestone.goalId);
+    },
+  },
 );
 
 export const accountsRouter = crudRouter((repos) => repos.accounts, {

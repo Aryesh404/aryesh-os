@@ -14,6 +14,7 @@ import {
 import { authRouter } from './auth.js';
 import { parseTransactionCsv, type ParsedTransaction } from './csv.js';
 import { dataRouter } from './data.js';
+import { captureCatalog, goalWorkspace, habitCheckIns, taskBrowse, todayRouter } from './planning.js';
 import {
   accountsRouter,
   areasRouter,
@@ -220,14 +221,16 @@ export const appRouter = router({
   areas: areasRouter,
   themes: themesRouter,
   projects: projectsRouter,
-  tasks: tasksRouter,
-  habits: habitsRouter,
+  tasks: mergeRouters(tasksRouter, taskBrowse),
+  habits: mergeRouters(habitsRouter, habitCheckIns),
   milestones: milestonesRouter,
   accounts: accountsRouter,
   transactions: mergeRouters(transactionsRouter, transactionsExtras),
   categories: categoriesRouter,
 
-  goals: goalsRouter,
+  goals: mergeRouters(goalsRouter, goalWorkspace),
+  today: todayRouter,
+  capture: captureCatalog,
   metrics: metricsRouter,
   readings: readingsRouter,
   collectors: collectorsRouter,

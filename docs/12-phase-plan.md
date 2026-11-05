@@ -1,5 +1,12 @@
 # 12 — Phase Plan
 
+**Current delivery note (2026-11-05):** this document is the original milestone
+roadmap, not a live implementation checklist. The application has domain storage,
+measurement, snapshots, trajectory, auth, search, finance, and data management.
+The [approved workspace design](17-workspace-review.md) is integrated into the
+normal application. The wider screen rollout remains future work.
+Graph, dashboard builders, native apps, and deployment changes are outside this slice.
+
 Sequencing principle: **get the loop closing as early as possible, then make it
 beautiful, then make it smart.** A working Observe→Measure→Visualize cycle with
 three goals is more valuable than a half-built version of everything.

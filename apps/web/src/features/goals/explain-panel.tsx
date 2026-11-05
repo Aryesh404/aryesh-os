@@ -101,7 +101,7 @@ export function ExplainPanel({ outcome }: { outcome: Outcome }) {
                   <td className="py-1.5 text-right mono">
                     {input.weight === undefined ? '—' : pct(input.weight)}
                   </td>
-                  <td className="py-1.5 text-right mono">{pct(input.value)}</td>
+                  <td className="py-1.5 text-right mono">{outcome.mode === 'momentum' ? `${input.value.toFixed(2)}×` : pct(input.value)}</td>
                   <td className="py-1.5 pl-4 text-fg-subtle">{input.detail ?? ''}</td>
                 </tr>
               ))}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { keys, useApi } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
-import { Subtle } from '../../components/ui.tsx';
+import { Dialog, ErrorNote, Subtle } from '../../components/ui.tsx';
 import type { Route } from '../../app.js';
 
 /**
@@ -41,6 +41,9 @@ export function CommandPalette({
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [busy, setBusy] = useState(false);
+  const running = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => inputRef.current?.focus(), []);
@@ -86,7 +89,7 @@ export function CommandPalette({
         id: 'capture-missing',
         kind: 'record',
         label: `No metric with key '${capture.key}'`,
-        hint: 'Create it under Metrics first',
+        hint: 'Set it up in Tracking',
         run: () => navigate({ name: 'metrics' }),
       });
     }
@@ -109,10 +112,10 @@ export function CommandPalette({
     const destinations: Array<[string, Route]> = [
       ['Today', { name: 'home' }],
       ['Goals', { name: 'goals' }],
-      ['Metrics', { name: 'metrics' }],
-      ['Finance', { name: 'finance' }],
+      ['Tracking', { name: 'metrics' }],
+      ['Money', { name: 'finance' }],
       ['Work', { name: 'work' }],
-      ['Structure', { name: 'structure' }],
+      ['Life areas & settings', { name: 'structure' }],
     ];
     for (const [label, route] of destinations) {
       if (query === '' || label.toLowerCase().includes(query.toLowerCase())) {
@@ -133,6 +136,14 @@ export function CommandPalette({
 
   useEffect(() => setCursor(0), [query]);
 
+  const run = async (item?: Item) => {
+    if (!item || running.current) return;
+    running.current = true; setBusy(true); setError(null);
+    try { await item.run(); }
+    catch (cause) { setError(cause instanceof Error ? cause : new Error('Could not complete that action.')); }
+    finally { running.current = false; setBusy(false); }
+  };
+
   const onKeyDown = (event: React.KeyboardEvent): void => {
     if (event.key === 'Escape') return onClose();
     if (event.key === 'ArrowDown') {
@@ -145,24 +156,18 @@ export function CommandPalette({
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      void items[cursor]?.run();
+      void run(items[cursor]);
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 p-4 pt-[12vh] flex justify-center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="w-full max-w-xl bg-raised border border-line-strong rounded-panel overflow-hidden h-fit">
+    <Dialog title="Search your workspace" onClose={onClose}>
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Search, or type a metric key and a value…"
+          placeholder="Find a goal, task, project, or measurement…"
           aria-label="Command palette"
           className="w-full bg-transparent border-0 border-b border-line px-4 py-3 text-[14px] outline-none"
         />
@@ -173,6 +178,8 @@ export function CommandPalette({
           </div>
         )}
 
+        {error && <ErrorNote error={error} />}
+        {search.isError && <ErrorNote error={search.error} />}
         <ul className="list-none m-0 p-1 max-h-80 overflow-y-auto">
           {items.length === 0 && (
             <li className="px-3 py-6 text-center">
@@ -185,8 +192,9 @@ export function CommandPalette({
             <li key={item.id}>
               <button
                 onMouseEnter={() => setCursor(index)}
-                onClick={() => void item.run()}
-                className={`w-full text-left px-3 py-2 rounded-control flex items-baseline gap-3 ${
+                onClick={() => void run(item)}
+                disabled={busy}
+                className={`min-h-11 w-full text-left px-3 py-2 rounded-control flex items-baseline gap-3 ${
                   index === cursor ? 'bg-surface' : ''
                 }`}
               >
@@ -203,7 +211,6 @@ export function CommandPalette({
             </li>
           ))}
         </ul>
-      </div>
-    </div>
+    </Dialog>
   );
 }

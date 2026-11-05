@@ -1,9 +1,12 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../../api/src/routers/index.js';
 
-const API_URL =
+const DEFAULT_API_URL =
   import.meta.env['VITE_API_URL'] ??
   (import.meta.env.PROD ? '/api' : 'http://localhost:4317');
+const API_URL = import.meta.env['VITE_REVIEW_MODE'] === 'true' &&
+  new URLSearchParams(window.location.search).get('review') === 'empty'
+  ? import.meta.env['VITE_REVIEW_EMPTY_API'] : DEFAULT_API_URL;
 
 /**
  * Type-only import of the router keeps end-to-end types with no codegen step.

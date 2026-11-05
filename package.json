@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "review": "tsx apps/api/src/review.ts",
     "build": "turbo run build",
     "lint": "eslint .",
     "typecheck": "turbo run typecheck",

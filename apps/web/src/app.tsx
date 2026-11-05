@@ -13,6 +13,7 @@ import { GoalDetail } from './features/goals/goal-detail.tsx';
 import { MetricsPage } from './features/metrics/metrics-page.tsx';
 import { WorkPage } from './features/work/work-page.tsx';
 import { FinancePage } from './features/finance/finance-page.tsx';
+import { CaptureProvider } from './features/capture/capture-context.js';
 
 /**
  * Routing is a hash route plus a small union rather than a router library.
@@ -97,18 +98,18 @@ export function App(): React.JSX.Element {
   };
 
   return (
-    <Shell route={route} navigate={navigate} onSignOut={signOut}>
+    <CaptureProvider><Shell route={route} navigate={navigate} onSignOut={signOut}>
       {/* Keyed on the route so a failure clears when the user navigates away
           rather than sticking until reload. */}
       <ErrorBoundary key={route.name} label="This page">
         {route.name === 'home' && <HomePage navigate={navigate} />}
         {route.name === 'goals' && <GoalsPage navigate={navigate} />}
-        {route.name === 'goal' && <GoalDetail id={route.id} navigate={navigate} />}
+        {route.name === 'goal' && <GoalDetail key={route.id} id={route.id} navigate={navigate} />}
         {route.name === 'metrics' && <MetricsPage />}
         {route.name === 'finance' && <FinancePage />}
       {route.name === 'work' && <WorkPage />}
         {route.name === 'structure' && <StructurePage />}
       </ErrorBoundary>
-    </Shell>
+    </Shell></CaptureProvider>
   );
 }

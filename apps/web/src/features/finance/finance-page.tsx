@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { planningDate } from '@aryesh/domain';
 import {
   Button,
   Card,
@@ -13,7 +14,7 @@ import {
 } from '../../components/ui.tsx';
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
-import { date as formatDate, dateInput, fromDateInput, money } from '../../lib/format.js';
+import { date as formatDate, fromDateInput, money } from '../../lib/format.js';
 import { ImportDialog } from './import-dialog.tsx';
 
 /**
@@ -239,7 +240,7 @@ function NewAccountDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function NewTransactionDialog({
+export function NewTransactionDialog({
   accountId,
   onClose,
 }: {
@@ -248,8 +249,9 @@ function NewTransactionDialog({
 }) {
   const [amount, setAmount] = useState('');
   const [direction, setDirection] = useState<'in' | 'out'>('in');
-  const [when, setWhen] = useState(dateInput(Date.now()));
+  const [when, setWhen] = useState(planningDate(Date.now()));
   const [description, setDescription] = useState('');
+  const account = useApi(['accounts', accountId], () => trpc.accounts.byId.query({ id: accountId }));
 
   const create = useApiMutation(
     (input: Parameters<typeof trpc.transactions.create.mutate>[0]) =>
@@ -263,17 +265,19 @@ function NewTransactionDialog({
         className="space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
+          if (!account.data || create.isPending) return;
           create.mutate({
             accountId,
             amountMinor: Math.round(Number(amount) * 100),
-            currency: 'INR',
+            currency: account.data.currency,
             direction,
             occurredAt: fromDateInput(when),
             ...(description ? { description } : {}),
           });
         }}
       >
-        <Field label="Amount">
+        {account.isError && <ErrorNote error={account.error} />}
+        <Field label={`Amount${account.data ? ' (' + account.data.currency + ')' : ''}`}>
           <Input
             type="number"
             step="0.01"
@@ -309,7 +313,7 @@ function NewTransactionDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending}>
+          <Button type="submit" disabled={create.isPending || !account.data}>
             {create.isPending ? 'Saving…' : 'Record'}
           </Button>
         </div>

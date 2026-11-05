@@ -20,6 +20,7 @@ import {
 import { createGoalsRepository } from './goals.js';
 import { createReadingsRepository } from './readings.js';
 import { createRelationsRepository } from './relations.js';
+import { createPlanningRepository } from './planning.js';
 
 export * from './base.js';
 export * from './custom-fields.js';
@@ -66,6 +67,7 @@ export function createRepositories({ db, clock = Date.now }: RepositoriesOptions
     tasks: createRepository(deps, tasks, 'task', { customFields: guard('task') }),
     habits: createRepository(deps, habits, 'habit', { customFields: guard('habit') }),
     habitEntries: habitEntries,
+    planning: createPlanningRepository(deps),
     relations: createRelationsRepository(deps),
     accounts: createRepository(deps, accounts, 'account', {
       customFields: guard('account'),

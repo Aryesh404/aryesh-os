@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { planningDate } from '@aryesh/domain';
 import { Button, Dialog, Empty, ErrorNote, Field, Input, Select, Skeleton, Subtle, Textarea } from '../../components/ui.tsx';
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
-import { date, dateInput, fromDateInput, metricValue, relativeDays } from '../../lib/format.js';
+import { date, fromDateInput, metricValue, relativeDays } from '../../lib/format.js';
 import { MetricSettings } from './metric-settings.tsx';
 import { BackfillCard } from './backfill-card.tsx';
 
@@ -341,7 +342,7 @@ function parseHistory(raw: string): {
   return { points, error: null };
 }
 
-function RecordReadingDialog({
+export function RecordReadingDialog({
   metric,
   onClose,
 }: {
@@ -354,7 +355,7 @@ function RecordReadingDialog({
   onClose: () => void;
 }) {
   const [value, setValue] = useState('');
-  const [when, setWhen] = useState(dateInput(Date.now()));
+  const [when, setWhen] = useState(planningDate(Date.now()));
   const [note, setNote] = useState('');
   const components = metric.components ?? [];
   // The engine refuses a whole-metric reading once a metric is decomposed, so
@@ -371,7 +372,7 @@ function RecordReadingDialog({
         ...(note ? { note } : {}),
       }),
     {
-      invalidates: [keys.metrics, keys.needingData, keys.goals],
+      invalidates: [keys.metrics, keys.needingData, keys.goals, keys.today, ['readings']],
       onSuccess: onClose,
     },
   );

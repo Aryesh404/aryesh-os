@@ -43,6 +43,7 @@ export function LoginScreen({ initialised }: { initialised: boolean }) {
         className="w-full max-w-sm bg-surface border border-line rounded-panel p-6 space-y-4"
       >
         <header>
+          <img src="/aryesh-logo.png" alt="AS — Your Vision, Our Innovation" width="256" height="205" className="login-logo" />
           <h1 className="text-[20px] font-semibold m-0">Aryesh OS</h1>
           <p className="text-fg-subtle text-[12px] mt-1 mb-0">
             {initialised ? 'Sign in to continue' : 'Set a password to get started'}

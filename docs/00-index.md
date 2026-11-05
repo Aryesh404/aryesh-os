@@ -1,6 +1,10 @@
 # Aryesh OS — Architecture (v2)
 
-Status: **Draft for approval.** No implementation code has been written.
+Status: the measurement application is implemented. The first workspace redesign
+slice was approved on 2026-11-05 and is integrated into the normal application;
+the wider rollout and browser visual acceptance remain pending.
+See [17 — Workspace delivery](17-workspace-review.md). Unimplemented graph,
+dashboard-builder, and execution proposals below remain roadmap material.
 
 > v2 supersedes the v1 document set, archived at
 > `docs/_superseded/v1-customization-engine/`. v1 made the customization engine

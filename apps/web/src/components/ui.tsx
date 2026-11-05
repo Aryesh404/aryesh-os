@@ -1,4 +1,5 @@
-import { forwardRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useRef, type ReactNode } from 'react';
+import { Icon } from './icon.js';
 
 /**
  * The small set of primitives the whole app is built from. Deliberately plain:
@@ -23,13 +24,13 @@ export function Card({
     <section
       className={cx(
         'bg-surface border border-line rounded-card',
-        className ?? 'p-4',
+        className ?? 'p-5 md:p-6',
       )}
     >
       {(title || action) && (
-        <header className="flex items-baseline justify-between mb-3">
+        <header className="flex items-center justify-between gap-3 mb-4">
           {title && (
-            <h2 className="text-[11px] uppercase tracking-[0.08em] text-fg-subtle font-medium">
+            <h2 className="text-[16px] tracking-tight text-fg font-medium m-0">
               {title}
             </h2>
           )}
@@ -48,10 +49,10 @@ export const Button = forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }
 >(function Button({ variant = 'ghost', className, ...props }, ref) {
   const base =
-    'inline-flex items-center gap-2 rounded-control px-3 py-1.5 text-[13px] font-medium ' +
+    'inline-flex justify-center items-center gap-2 min-h-11 rounded-control px-4 py-2 text-[14px] font-medium ' +
     'transition-colors duration-[120ms] disabled:opacity-40 disabled:pointer-events-none';
   const styles: Record<ButtonVariant, string> = {
-    primary: 'bg-accent text-white hover:bg-accent-dim',
+    primary: 'bg-accent text-[#1a142a] hover:bg-accent-dim',
     ghost: 'border border-line text-fg hover:border-line-strong hover:bg-raised',
     danger: 'border border-line text-behind hover:border-behind/50 hover:bg-raised',
   };
@@ -71,12 +72,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="block text-[12px] text-fg-muted mb-1.5">{label}</span>
+      <span className="block text-[13px] text-fg-muted mb-2">{label}</span>
       {children}
       {error ? (
-        <span className="block text-[11px] text-behind mt-1">{error}</span>
+        <span className="block text-[12px] text-behind mt-1" role="alert">{error}</span>
       ) : hint ? (
-        <span className="block text-[11px] text-fg-subtle mt-1">{hint}</span>
+        <span className="block text-[12px] text-fg-subtle mt-1">{hint}</span>
       ) : null}
     </label>
   );
@@ -152,10 +153,10 @@ export function Stale({
   if (minutes < 2) return <>{children}</>;
 
   return (
-    <div className="relative">
-      <div className="opacity-70">{children}</div>
-      <span className="absolute top-0 right-0 text-[10px] text-fg-subtle">
-        as of {new Date(since).toLocaleTimeString()}
+    <div>
+      {children}
+      <span className="block mt-2 text-[11px] text-fg-subtle">
+        Calculated at {new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </span>
     </div>
   );
@@ -181,33 +182,44 @@ export function Dialog({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const prior = document.activeElement;
+    const overflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = overflow;
+      if (prior instanceof HTMLElement && prior.isConnected) prior.focus();
+    };
+  }, []);
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] overflow-y-auto"
+    <dialog
+      ref={dialogRef}
+      aria-label={title}
+      aria-modal="true"
+      className={cx('app-dialog', wide && 'sm:!w-[min(800px,calc(100vw-32px))]')}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target !== e.currentTarget) return;
+        const bounds = e.currentTarget.getBoundingClientRect();
+        if (e.clientX < bounds.left || e.clientX > bounds.right || e.clientY < bounds.top || e.clientY > bounds.bottom) onClose();
       }}
     >
-      <div
-        role="dialog"
-        aria-label={title}
-        className={cx(
-          'bg-raised border border-line-strong rounded-panel w-full',
-          wide ? 'max-w-3xl' : 'max-w-lg',
-        )}
-      >
-        <header className="flex items-center justify-between px-4 py-3 border-b border-line">
-          <h2 className="text-[13px] font-medium m-0">{title}</h2>
+        <header className="dialog-header">
+          <h2>{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-fg-subtle hover:text-fg text-[16px] leading-none"
+            type="button"
+            className="icon-button"
           >
-            ×
+            <Icon name="close" />
           </button>
         </header>
-        <div className="p-4">{children}</div>
-      </div>
-    </div>
+        <div className="dialog-content">{children}</div>
+    </dialog>
   );
 }

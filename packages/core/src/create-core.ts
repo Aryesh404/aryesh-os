@@ -8,6 +8,7 @@ import { BUILTIN_COLLECTORS } from './collectors/builtin.js';
 import { createSnapshotter, type Snapshotter } from './snapshotter/index.js';
 import { createTrajectoryService, type TrajectoryService } from './trajectory/service.js';
 import { createJobQueue, type JobQueue } from './jobs/queue.js';
+import { createPlanningService, type PlanningService } from './planning.js';
 
 export interface CoreOptions {
   db: Db;
@@ -31,6 +32,7 @@ export interface Core {
   snapshots: Snapshotter;
   trajectory: TrajectoryService;
   jobs: JobQueue;
+  planning: PlanningService;
 }
 
 /** Job kinds the core registers for itself. */
@@ -61,6 +63,7 @@ export function createCore(options: CoreOptions): Core {
 
   const snapshots = createSnapshotter({ db, clock, progress, events });
   const trajectory = createTrajectoryService({ db, clock });
+  const planning = createPlanningService({ db, repos, trajectory, progress });
   const jobs = createJobQueue({ db, clock });
 
   jobs.register(JOB_KINDS.snapshot, async (payload) => {
@@ -108,5 +111,9 @@ export function createCore(options: CoreOptions): Core {
     await progress.recomputeAffectedBy({ kind: 'project', id: projectId });
   });
 
-  return { db, clock, repos, events, progress, collectors, snapshots, trajectory, jobs };
+  events.on('habit.checked', async ({ habitId }) => {
+    await progress.recomputeAffectedBy({ kind: 'habit', id: habitId });
+  });
+
+  return { db, clock, repos, events, progress, collectors, snapshots, trajectory, jobs, planning };
 }

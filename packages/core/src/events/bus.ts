@@ -13,6 +13,7 @@ export interface DomainEvents {
   'progress.recomputed': { goalId: string; progress: number | null; confidence: number };
   'project.changed': { projectId: string };
   'task.changed': { taskId: string; projectId?: string | undefined };
+  'habit.checked': { habitId: string; date: string };
   'snapshot.written': { date: number; goals: number; metrics: number };
   'collector.ran': { key: string; periods: number; written: number };
   'config.changed': { subjectType: string; subjectId: string };

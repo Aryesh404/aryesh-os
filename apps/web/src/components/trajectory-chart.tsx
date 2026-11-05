@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { date as formatDate, pct, statusColor, type Status } from '../lib/format.js';
 
 /**
@@ -59,7 +59,16 @@ export function TrajectoryChart({
   height = 220,
 }: TrajectoryChartProps) {
   const [hover, setHover] = useState<number | null>(null);
-  const width = 720;
+  const figure = useRef<HTMLElement>(null);
+  const [width, setWidth] = useState(720);
+  useEffect(() => {
+    if (!figure.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(Math.max(260, entry.contentRect.width));
+    });
+    observer.observe(figure.current);
+    return () => observer.disconnect();
+  }, []);
 
   const inner = {
     w: width - PADDING.left - PADDING.right,
@@ -97,7 +106,7 @@ export function TrajectoryChart({
     const bottom = [...band].reverse().map((p) => `${x(p.date)},${y(p.low)}`);
     return `M${top.join(' L')} L${bottom.join(' L')} Z`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [band, domain]);
+  }, [band, domain, width]);
 
   const nearest = useMemo(() => {
     if (hover === null || actual.length === 0) return null;
@@ -105,22 +114,31 @@ export function TrajectoryChart({
       Math.abs(x(point.date) - hover) < Math.abs(x(best.date) - hover) ? point : best,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hover, actual, domain]);
+  }, [hover, actual, domain, width]);
 
   const colour = statusColor(status);
 
   return (
-    <figure className="m-0">
+    <figure ref={figure} className="m-0">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
         role="img"
         aria-label="Progress over time against target"
-        onMouseMove={(e) => {
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || !actual.length) return;
+          e.preventDefault();
+          const current = nearest ? actual.findIndex((p) => p.date === nearest.date) : -1;
+          const index = e.key === 'Home' ? 0 : e.key === 'End' ? actual.length - 1
+            : e.key === 'ArrowRight' ? Math.min(actual.length - 1, current + 1) : Math.max(0, current - 1);
+          setHover(x(actual[index]!.date));
+        }}
+        onPointerMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setHover(((e.clientX - rect.left) / rect.width) * width);
         }}
-        onMouseLeave={() => setHover(null)}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHover(null); }}
       >
         {ticks.map((tick) => (
           <g key={tick}>
@@ -195,7 +213,7 @@ export function TrajectoryChart({
           today
         </text>
 
-        {targetDate !== undefined && (
+        {targetDate !== undefined && scale === 'completion' && (
           <>
             <path
               d={`M${x(targetDate)},${y(1) - 5} l5,5 l-5,5 l-5,-5 Z`}
@@ -229,7 +247,7 @@ export function TrajectoryChart({
         )}
       </svg>
 
-      <figcaption className="flex items-baseline justify-between mt-1 text-[11px] text-fg-subtle">
+      <figcaption aria-live="polite" className="flex flex-wrap gap-x-4 gap-y-2 items-baseline justify-between mt-3 text-[12px] text-fg-subtle">
         <span>{actual[0] ? formatDate(actual[0].date) : ''}</span>
         {nearest ? (
           <span className="mono text-fg-muted">

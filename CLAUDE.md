@@ -279,16 +279,20 @@ work — the import is the problem.
 
 ## Current state
 
-**Phase 1 complete — M1 through M8. Phase 2 M9 complete.** 286 tests green.
+**Phase 1 complete — M1 through M8. Phase 2 M9 complete.** The approved workspace
+redesign is integrated into the normal app; see `docs/17-workspace-review.md`
+for delivery scope and current verification results.
 
 M9 closed the reachability gap from `docs/15`: finance screens with CSV import,
 collector configuration and backfill, metric component decomposition,
 projection configuration, `expectedRate`, theme attachment, and metric preview.
 All four real goals are now enterable through the interface.
 
-Next is **Phase 2 — Visualization** (`docs/12-phase-plan.md`): the full visual
-system, the motion layer, the neural graph, the dashboard builder, and the Tauri
-wrapper.
+The approved design adds the dark visual foundation, responsive navigation,
+Today priorities and habit check-ins, Quick Add, goal overview, AS branding,
+and live IST date/time. Remaining screen redesigns are tracked in `docs/17`.
+Graph exploration, dashboard builders, native apps, and deployment changes
+remain deferred.
 
 Two things still open before Phase 2 starts:
 - Passkeys remain unbuilt — `docs/13` D11 recommends Phase 5, with mobile.

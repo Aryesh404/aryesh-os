@@ -43,6 +43,7 @@ export function useApiMutation<TInput, TOutput>(
 }
 
 export const keys = {
+  today: ['today'] as const,
   auth: ['auth'] as const,
   areas: ['areas'] as const,
   themes: ['themes'] as const,
