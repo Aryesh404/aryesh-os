@@ -39,13 +39,13 @@ function Areas() {
 
   const create = useApiMutation(
     () => trpc.areas.create.mutate({ name, color, sortOrder: areas.data?.items.length ?? 0 }),
-    { invalidates: [keys.areas], onSuccess: () => setName('') },
+    { record: { key: keys.areas, insert: true }, invalidates: [keys.areas], onSuccess: () => setName('') },
   );
 
   const setShare = useApiMutation(
     (input: { id: string; targetShare: number | null }) =>
       trpc.areas.update.mutate({ id: input.id, patch: { targetShare: input.targetShare } }),
-    { invalidates: [keys.areas] },
+    { record: { key: keys.areas }, invalidates: [keys.areas] },
   );
 
   return (
@@ -129,7 +129,7 @@ function Themes() {
 
   const create = useApiMutation(
     () => trpc.themes.create.mutate({ areaId: areaId || (areas.data?.items[0]?.id ?? ''), name }),
-    { invalidates: [keys.themes], onSuccess: () => setName('') },
+    { record: { key: keys.themes, insert: true }, invalidates: [keys.themes], onSuccess: () => setName('') },
   );
 
   const areaName = (id: string): string =>

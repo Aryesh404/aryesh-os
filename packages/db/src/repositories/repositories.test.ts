@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { auditEvents, revisions } from '../schema/index.js';
 import { createTestDb, TEST_ACTOR, type TestDb } from '../testing.js';
@@ -148,6 +148,16 @@ describe('audit', () => {
 });
 
 describe('optimistic concurrency', () => {
+  it('allows only one simultaneous edit of the same version, with one audit and revision', async () => {
+    const area = await seedArea();
+    const edits = await Promise.allSettled(['One', 'Two'].map((name) =>
+      t.repos.areas.update(area.id, { name }, TEST_ACTOR, { expectedVersion: 1 })));
+    expect(edits.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(edits.find((result) => result.status === 'rejected')).toMatchObject({ reason: { code: 'CONFLICT' } });
+    expect((await t.repos.areas.getById(area.id)).version).toBe(2);
+    expect((await auditFor('area', area.id)).filter((event) => event.action === 'update')).toHaveLength(1);
+    expect(await t.db.select().from(revisions).where(eq(revisions.subjectId, area.id))).toHaveLength(1);
+  });
   it('bumps version on update and rejects a stale write', async () => {
     const area = await seedArea();
     expect(area.version).toBe(1);
@@ -163,6 +173,35 @@ describe('optimistic concurrency', () => {
     await expect(
       t.repos.areas.update(area.id, { name: 'Two' }, TEST_ACTOR, { expectedVersion: 1 }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+});
+
+describe('remote write round trips and atomicity', () => {
+  it('uses one batch for a warm create and a read plus batch for a revisioned update', async () => {
+    await seedArea(); // Custom-field definitions are cached after first use.
+    const execute = vi.spyOn(t.client, 'execute');
+    const batch = vi.spyOn(t.client, 'batch');
+    const area = await seedArea();
+    expect(execute).not.toHaveBeenCalled();
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(area.version).toBe(1);
+    execute.mockClear(); batch.mockClear();
+    const saved = await t.repos.areas.update(area.id, { name: 'Updated' }, TEST_ACTOR);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(saved.name).toBe('Updated');
+    expect(saved.version).toBe(2);
+    execute.mockRestore(); batch.mockRestore();
+  });
+
+  it('rolls back creates and updates when the audit cannot be saved', async () => {
+    const area = await seedArea();
+    await t.client.execute("CREATE TRIGGER reject_audit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+    await expect(seedArea()).rejects.toThrow('audit unavailable');
+    expect(await t.repos.areas.count()).toBe(1);
+    await expect(t.repos.areas.update(area.id, { name: 'Lost change' }, TEST_ACTOR)).rejects.toThrow('audit unavailable');
+    expect(await t.repos.areas.getById(area.id)).toMatchObject({ name: 'Business', version: 1 });
+    expect(await t.db.select().from(revisions).where(eq(revisions.subjectId, area.id))).toHaveLength(0);
   });
 });
 

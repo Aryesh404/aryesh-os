@@ -34,6 +34,33 @@ beforeEach(() => {
 afterEach(() => { cleanup(); client.clear(); });
 
 describe('daily workflow interactions', () => {
+  it('responds immediately to a task click and rolls back if the slow save fails', async () => {
+    const user = userEvent.setup();
+    let reject!: (error: Error) => void;
+    api.update.mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
+    render(wrap(<TaskCheck task={task('A')} />));
+    await user.dblClick(screen.getByRole('button', { name: 'Complete Task A' }));
+    expect(api.update).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Reopen Task A' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('status').textContent).toBe('Saving…');
+    reject(new Error('Network unavailable'));
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: 'Complete Task A' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('shows habit progress immediately, then reverts the count after a rejected save', async () => {
+    const user = userEvent.setup();
+    let reject!: (error: Error) => void;
+    api.check.mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
+    render(wrap(<HabitRow habit={habit} date="2026-11-01" />));
+    await user.click(screen.getByRole('button', { name: 'Check in to Evening walk' }));
+    expect(screen.getByText('2 of 3 days this week')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Undo check-in for Evening walk' }).getAttribute('aria-busy')).toBe('true');
+    reject(new Error('Save failed'));
+    await screen.findByRole('alert');
+    expect(screen.getByText('1 of 3 days this week')).toBeDefined();
+  });
+
   it('limits choices to three and keeps them after a failed save for retry', async () => {
     const user = userEvent.setup();
     const close = vi.fn();

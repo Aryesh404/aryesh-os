@@ -103,7 +103,7 @@ The production bundle check confirms the approved Today UI, original logo,
 IST clock, and normal `/api` route are included, while the review API addresses,
 fictional authentication principal, and review banner content are absent.
 
-Latest result (2026-11-05): full CI passed, including 311 tests across 28 files,
+Latest result (2026-11-05): full CI passed, including 319 tests across 29 files,
 all seven package type checks, lint, and production build. The HTTP smoke check
 confirmed 3 priorities / 3 habits / 3 goals in the populated fixture and zero
 in each category in the empty fixture.
@@ -122,6 +122,31 @@ DOM tests do not verify rendering, native focus trapping, touch, or virtual keyb
 | Failed saves, offline errors, two-session conflicts | Pending | Pending | Pending |
 
 ## Remaining rollout
+
+### Save responsiveness — 2026-11-05
+
+Standard repository creates now return the saved database row and write the
+audit in one atomic batch. Updates use one read followed by one atomic batch
+for the version-guarded update, audit, and optional revision. With custom-field
+definitions already cached, this reduces create round trips from three to one,
+and update round trips from four/five to two. Validation and affected-goal
+recomputation still finish before success is returned.
+
+Confirmed CRUD responses update cached records before background refreshes.
+Only complete, unfiltered root lists receive new rows; filtered/paginated
+queries keep server-owned membership and cursors. Overlapping invalidation
+prefixes refresh each matching query once. Today priority saves, task changes,
+and habit check-ins update their visible data directly from confirmed writes.
+Task and habit buttons also show immediate pending feedback, disable duplicate
+clicks, and revert on failure. Today batches its base reads and runs independent
+goal/history/habit reads concurrently.
+
+Regression coverage checks remote-client round-trip counts, simultaneous
+versioned edits, audit-failure rollback, delayed saves with UI rollback, and
+saved rows appearing before a slow background read completes. These are local
+automated checks, not measured production latency or a change to hosting.
+
+### Further screen work
 
 The user approved the preview, including the visual refinements, logo, and live
 clock. The remaining rollout extends the design to Work tabs, goal creation with inline Life

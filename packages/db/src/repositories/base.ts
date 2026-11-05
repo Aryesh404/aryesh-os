@@ -2,7 +2,6 @@ import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { AppError, NotFoundError, type Actor } from '@aryesh/domain';
 
-import { auditEvents, revisions } from '../schema/index.js';
 import type { Db } from '../client.js';
 import { newId } from '../ids.js';
 
@@ -123,26 +122,18 @@ export function createRepository<T extends RecordTable>(
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const t = table as any;
 
-  const audit = async (
+  const audit = (
     action: string,
     id: string,
     before: unknown,
     after: unknown,
     ctx: Ctx,
-  ): Promise<void> => {
-    await db.insert(auditEvents).values({
-      id: newId(),
-      at: clock(),
-      actor: ctx.actor,
-      action,
-      subjectType,
-      subjectId: id,
-      before: before ?? null,
-      after: after ?? null,
-      note: ctx.note ?? null,
-      executionId: ctx.executionId ?? null,
-    });
-  };
+  ) => db.run(sql`INSERT INTO audit_events
+    (id, at, actor, action, subject_type, subject_id, before, after, note, execution_id)
+    SELECT ${newId()}, ${clock()}, ${ctx.actor}, ${action}, ${subjectType}, ${id},
+      ${before == null ? null : JSON.stringify(before)},
+      ${after == null ? null : JSON.stringify(after)}, ${ctx.note ?? null}, ${ctx.executionId ?? null}
+    WHERE changes() = 1`);
 
   const notDeleted = (extra?: SQL): SQL =>
     (extra ? and(isNull(table.deletedAt), extra) : isNull(table.deletedAt)) as SQL;
@@ -204,9 +195,12 @@ export function createRepository<T extends RecordTable>(
         deletedAt: null,
       };
 
-      await db.insert(t).values(row);
-      await audit('create', id, null, row, ctx);
-      return repo.getById(id);
+      // One network round trip, including the audit, and return database defaults.
+      const [created] = await db.batch([
+        db.insert(t).values(row).returning(),
+        audit('create', id, null, row, ctx),
+      ]);
+      return (created as Row[])[0]!;
     },
 
     async update(
@@ -229,7 +223,7 @@ export function createRepository<T extends RecordTable>(
 
       const clean: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(patch)) {
-        if (!MANAGED.has(key)) clean[key] = value;
+        if (!MANAGED.has(key) && value !== undefined) clean[key] = value;
       }
 
       const guard = options.customFields;
@@ -241,59 +235,49 @@ export function createRepository<T extends RecordTable>(
       }
 
       const now = clock();
-      await db
-        .update(t)
-        .set({
-          ...clean,
-          updatedAt: now,
-          updatedBy: ctx.actor,
-          version: currentVersion + 1,
-        })
-        .where(eq(table.id, id));
-
-      const after = (await repo.getById(id)) as Record<string, unknown>;
-      await audit('update', id, before, after, ctx);
-
-      if (options.revisioned) {
-        const { patch: forward, inverse } = diff(before, after);
-        if (Object.keys(forward).length > 0) {
-          await db.insert(revisions).values({
-            id: newId(),
-            subjectType,
-            subjectId: id,
-            version: currentVersion + 1,
-            patch: forward,
-            inverse,
-            actor: ctx.actor,
-            at: now,
-            label: opts.label ?? null,
-          });
-        }
+      const values = { ...clean, updatedAt: now, updatedBy: ctx.actor, version: currentVersion + 1 };
+      const after = { ...before, ...values };
+      const { patch: forward, inverse } = diff(before, after);
+      // Guard the write itself, not just the preceding read. changes() keeps
+      // audit and revision writes tied to the successful update in this batch.
+      const update = db.update(t).set(values)
+        .where(and(eq(table.id, id), eq(table.version, currentVersion), isNull(table.deletedAt))).returning();
+      const log = audit('update', id, before, after, ctx);
+      const [updated] = options.revisioned && Object.keys(forward).length > 0
+        ? await db.batch([update, log, db.run(sql`INSERT INTO revisions
+            (id, subject_type, subject_id, version, patch, inverse, actor, at, label)
+            SELECT ${newId()}, ${subjectType}, ${id}, ${currentVersion + 1},
+              ${JSON.stringify(forward)}, ${JSON.stringify(inverse)}, ${ctx.actor}, ${now}, ${opts.label ?? null}
+            WHERE changes() = 1`)])
+        : await db.batch([update, log]);
+      const rows = updated as Row[];
+      if (!rows.length) {
+        const current = await repo.getById(id);
+        throw new VersionConflictError(subjectType, id, currentVersion, current['version'] as number);
       }
-
-      return after as Row;
+      return rows[0]!;
     },
 
     /** docs/02 §4 — soft delete everywhere, with a restore window. */
     async softDelete(id: string, ctx: Ctx): Promise<void> {
       const before = await repo.getById(id);
       const now = clock();
-      await db
+      await db.batch([db
         .update(t)
         .set({ deletedAt: now, updatedAt: now, updatedBy: ctx.actor })
-        .where(eq(table.id, id));
-      await audit('delete', id, before, null, ctx);
+        .where(eq(table.id, id)),
+      audit('delete', id, before, null, ctx)]);
     },
 
     async restore(id: string, ctx: Ctx): Promise<Row> {
       const before = await repo.getById(id, { includeDeleted: true });
       const now = clock();
-      await db
+      const [restored] = await db.batch([db
         .update(t)
         .set({ deletedAt: null, updatedAt: now, updatedBy: ctx.actor })
-        .where(eq(table.id, id));
-      await audit('restore', id, before, null, ctx);
-      return repo.getById(id);
+        .where(eq(table.id, id)).returning(),
+      audit('restore', id, before, null, ctx)]);
+      return (restored as Row[])[0]!;
     },
 
     async count(where?: SQL): Promise<number> {

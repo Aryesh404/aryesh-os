@@ -172,7 +172,7 @@ function NewAccountDialog({ onClose }: { onClose: () => void }) {
   const create = useApiMutation(
     (input: Parameters<typeof trpc.accounts.create.mutate>[0]) =>
       trpc.accounts.create.mutate(input),
-    { invalidates: [keys.accounts], onSuccess: onClose },
+    { record: { key: keys.accounts, insert: true }, invalidates: [keys.accounts], onSuccess: onClose },
   );
 
   return (
@@ -256,7 +256,7 @@ export function NewTransactionDialog({
   const create = useApiMutation(
     (input: Parameters<typeof trpc.transactions.create.mutate>[0]) =>
       trpc.transactions.create.mutate(input),
-    { invalidates: [keys.transactions, keys.accounts], onSuccess: onClose },
+    { record: { key: keys.transactions, insert: true }, invalidates: [keys.transactions, keys.accounts], onSuccess: onClose },
   );
 
   return (

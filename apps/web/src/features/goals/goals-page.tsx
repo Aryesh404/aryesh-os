@@ -114,7 +114,7 @@ function NewGoalDialog({
   const create = useApiMutation(
     (input: Parameters<typeof trpc.goals.create.mutate>[0]) =>
       trpc.goals.create.mutate(input),
-    { invalidates: [keys.goals], onSuccess: (goal) => onCreated(goal.id) },
+    { record: { key: keys.goals, insert: true }, invalidates: [keys.goals, keys.today], onSuccess: (goal) => onCreated(goal.id) },
   );
 
   const submit = (event: React.FormEvent): void => {

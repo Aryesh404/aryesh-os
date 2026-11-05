@@ -20,13 +20,21 @@ export function FocusPicker({ focus, selectedTasks, unfinished, onClose }: {
   const [creating, setCreating] = useState(false);
   const tasks = useRecords(['tasks', 'focus', q], (page) => trpc.tasks.browse.query({ ...page, q, openOnly: true }));
   const save = useApiMutation(() => trpc.today.saveFocus.mutate({ date: focus.date, taskIds: selected, revision }), {
-    invalidates: [keys.today], onSuccess: onClose,
+    invalidates: [keys.today], onSuccess: async (saved) => {
+      await client.cancelQueries({ queryKey: keys.today });
+      client.setQueryData<Awaited<ReturnType<typeof trpc.today.summary.query>>>(keys.today, (old) =>
+        old && old.date === saved.date ? { ...old, focus: saved,
+          focusTasks: saved.taskIds.flatMap((id) => all.filter((task) => task.id === id)),
+        } : old);
+      onClose();
+    },
   });
   const [refreshError, setRefreshError] = useState<Error | null>(null);
   const reload = async () => {
     try {
       const latest = await trpc.today.summary.query();
-      await client.invalidateQueries({ queryKey: keys.today });
+      await client.cancelQueries({ queryKey: keys.today });
+      client.setQueryData(keys.today, latest);
       if (latest.date !== focus.date) { onClose(); return; }
       setSelected(latest.focusTasks.map((t) => t.id)); setRevision(latest.focus.revision);
       setKnown(latest.focusTasks); save.reset(); setRefreshError(null);

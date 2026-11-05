@@ -18,6 +18,7 @@ export function GoalSettings({ goal }: { goal: Goal }) {
     (input: Parameters<typeof trpc.goals.update.mutate>[0]) =>
       trpc.goals.update.mutate(input),
     {
+      record: { key: keys.goals },
       invalidates: [
         keys.goal(goal.id),
         keys.goals,
@@ -133,7 +134,7 @@ function CompoundingSettings({
   const update = useApiMutation(
     (input: Parameters<typeof trpc.goals.update.mutate>[0]) =>
       trpc.goals.update.mutate(input),
-    { invalidates: [keys.goal(goal.id), ['goals', goal.id, 'trajectory']] },
+    { record: { key: keys.goals }, invalidates: [keys.goal(goal.id), ['goals', goal.id, 'trajectory'], keys.today] },
   );
 
   const save = () => {

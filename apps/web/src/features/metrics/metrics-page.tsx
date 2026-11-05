@@ -173,7 +173,7 @@ function NewMetricDialog({ onClose }: { onClose: () => void }) {
       }
       return metric;
     },
-    { invalidates: [keys.metrics, keys.needingData], onSuccess: onClose },
+    { record: { key: keys.metrics, insert: true }, invalidates: [keys.metrics, keys.needingData], onSuccess: onClose },
   );
 
   const parsedHistory = parseHistory(history);

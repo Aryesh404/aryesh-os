@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Card, Empty, ErrorNote, Input, Select, Skeleton, Subtle } from '../../components/ui.tsx';
 import { keys, useApi, useApiMutation } from '../../lib/query.js';
 import { trpc } from '../../lib/trpc.js';
+import { TaskCheck } from '../home/task-check.js';
 
 /**
  * Projects, tasks, and habits.
@@ -38,7 +39,7 @@ function Projects() {
   const projects = useApi(keys.projects, () => trpc.projects.list.query({ limit: 100 }));
   const create = useApiMutation(
     () => trpc.projects.create.mutate({ name, status: 'active' }),
-    { invalidates: [keys.projects], onSuccess: () => setName('') },
+    { record: { key: keys.projects, insert: true }, invalidates: [keys.projects], onSuccess: () => setName('') },
   );
 
   return (
@@ -70,11 +71,11 @@ function Projects() {
         className="mt-4 pt-3 border-t border-line flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (name.trim()) create.mutate(undefined as never);
+          if (name.trim() && !create.isPending) create.mutate(undefined as never);
         }}
       >
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New project…" />
-        <Button type="submit" disabled={name.trim() === ''}>Add</Button>
+        <Button type="submit" disabled={name.trim() === '' || create.isPending}>{create.isPending ? 'Saving…' : 'Add'}</Button>
       </form>
       {create.isError && <ErrorNote error={create.error} />}
     </Card>
@@ -86,7 +87,7 @@ function Tasks({ projectId }: { projectId: string }) {
   const [estimate, setEstimate] = useState('');
 
   const tasks = useApi(keys.tasks, () => trpc.tasks.list.query({ limit: 200 }));
-  const invalidates = [keys.tasks, keys.projects, keys.goals];
+  const invalidates = [keys.tasks, keys.projects, keys.goals, keys.today];
 
   const create = useApiMutation(
     () =>
@@ -96,20 +97,7 @@ function Tasks({ projectId }: { projectId: string }) {
         status: 'todo',
         ...(estimate !== '' ? { estimate: Number(estimate) } : {}),
       }),
-    { invalidates, onSuccess: () => { setTitle(''); setEstimate(''); } },
-  );
-
-  const toggle = useApiMutation(
-    (input: { id: string; done: boolean }) =>
-      trpc.tasks.update.mutate({
-        id: input.id,
-        patch: {
-          status: input.done ? 'done' : 'todo',
-          completedAt: input.done ? Date.now() : null,
-          ...(input.done ? { startedAt: Date.now() } : {}),
-        },
-      }),
-    { invalidates },
+    { record: { key: keys.tasks, insert: true }, invalidates, onSuccess: () => { setTitle(''); setEstimate(''); } },
   );
 
   const mine = (tasks.data?.items ?? []).filter((t) => t.projectId === projectId);
@@ -118,13 +106,7 @@ function Tasks({ projectId }: { projectId: string }) {
     <div className="pl-4 mt-2 border-l border-line space-y-1">
       {mine.map((task) => (
         <div key={task.id} className="flex items-center gap-2 text-[13px]">
-          <input
-            type="checkbox"
-            checked={task.status === 'done'}
-            onChange={(e) => toggle.mutate({ id: task.id, done: e.target.checked })}
-            className="accent-[var(--st-on-track)]"
-            aria-label={task.title}
-          />
+          <TaskCheck task={task} />
           <span className={task.status === 'done' ? 'text-fg-subtle line-through' : ''}>
             {task.title}
           </span>
@@ -138,7 +120,7 @@ function Tasks({ projectId }: { projectId: string }) {
         className="flex gap-2 pt-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (title.trim()) create.mutate(undefined as never);
+          if (title.trim() && !create.isPending) create.mutate(undefined as never);
         }}
       >
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New task…" />
@@ -150,8 +132,9 @@ function Tasks({ projectId }: { projectId: string }) {
           className="w-20"
           aria-label="Effort estimate"
         />
-        <Button type="submit" disabled={title.trim() === ''}>Add</Button>
+        <Button type="submit" disabled={title.trim() === '' || create.isPending}>{create.isPending ? 'Saving…' : 'Add'}</Button>
       </form>
+      {create.isError && <ErrorNote error={create.error} />}
     </div>
   );
 }
@@ -163,7 +146,7 @@ function Habits() {
   const habits = useApi(keys.habits, () => trpc.habits.list.query({ limit: 100 }));
   const create = useApiMutation(
     () => trpc.habits.create.mutate({ name, cadence, targetPerPeriod: 1 }),
-    { invalidates: [keys.habits], onSuccess: () => setName('') },
+    { record: { key: keys.habits, insert: true }, invalidates: [keys.habits, keys.today], onSuccess: () => setName('') },
   );
 
   return (
@@ -191,7 +174,7 @@ function Habits() {
         className="mt-4 pt-3 border-t border-line flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (name.trim()) create.mutate(undefined as never);
+          if (name.trim() && !create.isPending) create.mutate(undefined as never);
         }}
       >
         <Select
@@ -204,7 +187,7 @@ function Habits() {
           <option value="weekly">weekly</option>
         </Select>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New habit…" />
-        <Button type="submit" disabled={name.trim() === ''}>Add</Button>
+        <Button type="submit" disabled={name.trim() === '' || create.isPending}>{create.isPending ? 'Saving…' : 'Add'}</Button>
       </form>
       {create.isError && <ErrorNote error={create.error} />}
     </Card>

@@ -32,7 +32,7 @@ export function MetricSettings({
   const update = useApiMutation(
     (input: Parameters<typeof trpc.metrics.update.mutate>[0]) =>
       trpc.metrics.update.mutate(input),
-    { invalidates: [keys.metrics, keys.needingData] },
+    { record: { key: keys.metrics }, invalidates: [keys.metrics, keys.needingData, keys.goals, keys.today] },
   );
 
   const [components, setComponents] = useState(metric.components ?? []);

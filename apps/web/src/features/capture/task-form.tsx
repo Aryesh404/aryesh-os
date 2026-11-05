@@ -12,7 +12,7 @@ export function TaskForm({ onSaved, onCancel }: {
   const [due, setDue] = useState('');
   const save = useApiMutation(() => trpc.tasks.create.mutate({
     title: title.trim(), ...(due ? { dueDate: fromDateInput(due) } : {}),
-  }), { invalidates: [keys.tasks, keys.today], onSuccess: onSaved });
+  }), { record: { key: keys.tasks, insert: true }, invalidates: [keys.tasks, keys.today], onSuccess: onSaved });
   return <form onSubmit={(event) => { event.preventDefault(); if (title.trim() && !save.isPending) save.mutate(undefined); }}>
     <Field label="What would you like to do?"><Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A small, clear next step" maxLength={300} required /></Field>
     <div className="mt-5"><Field label="Due date" hint="Optional. You can choose this task as a priority without a due date."><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field></div>

@@ -140,6 +140,9 @@ work — the import is the problem.
 - Repositories come from `createRepositories({ db, clock })`. The factory in
   `packages/db/src/repositories/base.ts` handles audit, soft delete, optimistic
   version, revisions, and custom-field validation once — do not hand-roll them.
+- Standard record writes batch the mutation, audit, and revision atomically.
+  Use `returning()` for the saved row, and retain the version predicate on
+  updates. Avoid adding serial round trips to the remote database save path.
 - Every write takes a `Ctx { actor, executionId?, note? }`. There is no
   anonymous write.
 - `belongs_to` is never stored; containment is a foreign key. The graph derives

@@ -25,8 +25,9 @@ export function createPlanningService({ db, repos, trajectory, progress }: {
   return {
     habitState,
     async today(date: string) {
-      const focus = await repos.planning.getFocus(date);
-      const yesterday = await repos.planning.getFocus(shiftDate(date, -1));
+      const [focus, yesterday] = await Promise.all([
+        repos.planning.getFocus(date), repos.planning.getFocus(shiftDate(date, -1)),
+      ]);
       const taskIds = [...new Set([...focus.taskIds, ...yesterday.taskIds])];
       const selected = taskIds.length ? await db.select().from(tasks)
         .where(and(inArray(tasks.id, taskIds), isNull(tasks.deletedAt))) : [];
@@ -35,7 +36,7 @@ export function createPlanningService({ db, repos, trajectory, progress }: {
         t.id === id && t.status !== 'done' && t.status !== 'cancelled' && !focus.taskIds.includes(id)));
       const dueWhere = and(isNull(tasks.deletedAt), ne(tasks.status, 'done'), ne(tasks.status, 'cancelled'),
         lt(tasks.dueDate, dayStamp(shiftDate(date, 1))));
-      const [due, dueCount, habitRows, habitCount, goalRows] = await Promise.all([
+      const [due, dueCount, habitRows, habitCount, goalRows] = await db.batch([
         db.select().from(tasks).where(dueWhere).orderBy(asc(tasks.dueDate), asc(tasks.id)).limit(6),
         db.select({ count: sql<number>`count(*)` }).from(tasks).where(dueWhere),
         db.select().from(habits).where(isNull(habits.deletedAt)).orderBy(asc(habits.name), asc(habits.id)).limit(6),
@@ -45,32 +46,37 @@ export function createPlanningService({ db, repos, trajectory, progress }: {
           .where(and(isNull(goals.deletedAt), eq(goals.status, 'active')))
           .orderBy(desc(goals.importance), asc(goals.id)).limit(3),
       ]);
-      const updates = await Promise.all(goalRows.map(async ({ goal, areaName, areaColor }) => {
-        const history = await db.select().from(goalSnapshots).where(and(
+      const [updates, habitStates] = await Promise.all([
+        Promise.all(goalRows.map(async ({ goal, areaName, areaColor }) => {
+        const [history, current, goalTrajectory] = await Promise.all([
+          db.select().from(goalSnapshots).where(and(
           eq(goalSnapshots.goalId, goal.id), gte(goalSnapshots.date, dayStamp(shiftDate(date, -7))),
           lt(goalSnapshots.date, dayStamp(shiftDate(date, 1))),
-        )).orderBy(asc(goalSnapshots.date));
+          )).orderBy(asc(goalSnapshots.date)),
+          progress.compute(goal.id), trajectory.forGoal(goal.id),
+        ]);
         const points = history.flatMap((point) => {
           const value = goal.measurementMode === 'momentum' ? point.momentum : point.progress;
           return value === null ? [] : [{ date: point.date, value }];
         });
         const first = points[0];
         const last = points.at(-1);
-        const current = await progress.compute(goal.id);
         const measured = current.measurable ? (current.mode === 'completion' ? current.progress : current.momentum) : null;
         return {
           ...goal, areaName, areaColor, points,
           currentValue: measured?.value ?? null,
           confidence: measured?.confidence ?? 0,
           degradedReason: current.measurable ? current.degraded?.reason ?? null : current.reason,
-          trajectory: await trajectory.forGoal(goal.id),
+          trajectory: goalTrajectory,
           change: first && last && points.length > 1
             ? { value: last.value - first.value, from: first.date, to: last.date } : null,
         };
-      }));
+        })),
+        Promise.all(habitRows.map((habit) => habitState(habit, date))),
+      ]);
       return {
         date, focus, focusTasks, unfinished, dueTasks: due, dueCount: dueCount[0]?.count ?? 0,
-        habits: await Promise.all(habitRows.map((habit) => habitState(habit, date))),
+        habits: habitStates,
         habitCount: habitCount[0]?.count ?? 0, goals: updates,
       };
     },
